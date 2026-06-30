@@ -97,7 +97,7 @@ scripts\start.bat                  # Windows cmd
 # Trigger a report job (uses the auto-seeded tenant + business date)
 curl -X POST http://localhost:8080/api/v1/jobs \
   -H 'Content-Type: application/json' \
-  -d '{"tenantId":"BR","reportType":"ACCOUNT_STATEMENT","businessDate":"2026-06-30"}'
+  -d '{"tenantId":"BE","reportType":"ACCOUNT_STATEMENT","businessDate":"2026-06-30"}'
 
 # Watch status, then stop
 curl http://localhost:8080/api/v1/jobs        # list executions
