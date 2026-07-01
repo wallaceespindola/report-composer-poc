@@ -40,8 +40,13 @@ API/Scheduler
 - **One partition per `accountId`**; each worker thread runs exactly one remote step.
 - **Idempotent & restartable** — re-running never duplicates a report; failed
   partitions restart without reprocessing completed ones.
-- **New country = DB configuration only** (no code change).
-- **New report type = one new `ReportTypeStrategy` implementation** (Strategy pattern).
+- **Pluggable country onboarding = DB contract config only.** Insert a `tenant` row plus
+  `tenant_report_contract` rows binding it to agreed report types — no rebuild, no
+  redeploy. The **existing running workers** immediately pick up that tenant's jobs for
+  any contracted report type (workers are generic and resolve the strategy by
+  `reportType` at runtime).
+- **New report type = one new `ReportTypeStrategy` implementation** (Strategy pattern);
+  tenants then contract it via a config row.
 - **Autoscalable** worker pods via **HPA** (optional **KEDA** on Kafka consumer lag).
 - **Self-managed infra** — provisions Kafka topics, owns the batch lifecycle, creates
   the master Job (k8s mode); **auto-seeds mock data** on startup.
