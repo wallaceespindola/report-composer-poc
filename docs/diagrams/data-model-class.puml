@@ -1,0 +1,118 @@
+@startuml data-model-class
+' Report Composer POC — JPA entity class diagram (domain package)
+title Report Composer POC — Data Model Classes (JPA entities)
+
+skinparam backgroundColor #ffffff
+skinparam class {
+    BackgroundColor #efe3f5
+    BorderColor #7b1fa2
+    BackgroundColor<<enum>> #fff3e0
+}
+
+class Tenant <<entity: tenant>> {
+    +tenantId: String <<PK>>
+    +countryCode: String
+    +locale: String
+    +currency: String
+    +enabled: boolean
+    +configJson: String (CLOB)
+    +createdAt: Instant
+}
+
+class TenantReportContract <<entity: tenant_report_contract>> {
+    +id: Long <<PK>>
+    +tenantId: String
+    +reportType: String
+    +enabled: boolean
+    +effectiveFrom: LocalDate
+    +effectiveTo: LocalDate
+    +paramsJson: String (CLOB)
+    +isActiveOn(businessDate: LocalDate): boolean
+}
+
+class Account <<entity: account>> {
+    +accountId: String <<PK>>
+    +tenantId: String
+    +customerName: String
+    +eligible: boolean
+}
+
+class TransactionEntity <<entity: transaction>> {
+    +id: Long <<PK>>
+    +tenantId: String
+    +accountId: String
+    +businessDate: LocalDate
+    +amount: BigDecimal
+    +currency: String
+    +txnType: String
+    +description: String
+}
+
+class ReportJob <<entity: report_job>> {
+    +id: Long <<PK>>
+    +tenantId: String
+    +reportType: String
+    +businessDate: LocalDate
+    +jobExecutionId: Long
+    +status: ReportJobStatus
+    +createdAt: Instant
+    +updatedAt: Instant
+}
+
+class ReportWorkUnit <<entity: report_work_unit>> {
+    +id: Long <<PK>>
+    +reportJobId: Long
+    +tenantId: String
+    +accountId: String
+    +reportType: String
+    +businessDate: LocalDate
+    +status: WorkUnitStatus
+    +attemptCount: int
+    +errorMessage: String
+    +updatedAt: Instant
+}
+
+class ReportArtifact <<entity: report_artifact>> {
+    +id: Long <<PK>>
+    +workUnitId: Long <<unique>>
+    +objectKey: String
+    +contentType: String
+    +sizeBytes: long
+    +checksum: String (SHA-256)
+    +createdAt: Instant
+}
+
+enum ReportJobStatus <<enum>> {
+    REQUESTED
+    STARTED
+    COMPLETED
+    FAILED
+    RESTARTING
+}
+
+enum WorkUnitStatus <<enum>> {
+    PENDING
+    RUNNING
+    COMPLETED
+    FAILED
+}
+
+Tenant "1" --> "*" TenantReportContract : contracts
+Tenant "1" --> "*" Account : owns
+Account "1" --> "*" TransactionEntity : transactions
+ReportJob "1" --> "*" ReportWorkUnit : partitions
+ReportWorkUnit "1" --> "0..1" ReportArtifact : artifact
+ReportJob ..> ReportJobStatus
+ReportWorkUnit ..> WorkUnitStatus
+
+note bottom of ReportJob
+  unique (tenantId, reportType, businessDate)
+  = the global job key (PRD §3.1)
+end note
+
+note bottom of ReportWorkUnit
+  idempotency unique key
+  (tenantId, accountId, reportType, businessDate)
+  + attemptCount drive restartability (PRD §15)
+end note
+@enduml

@@ -12,6 +12,8 @@ Main diagrams for the Report Composer POC, each in two formats:
 | Components | [components.mmd](components.mmd) | [components.puml](components.puml) |
 | Class (Strategy + batch core) | [class.mmd](class.mmd) | [class.puml](class.puml) |
 | Job lifecycle sequence | [sequence.mmd](sequence.mmd) | [sequence.puml](sequence.puml) |
+| Data model ERD | [erd.mmd](erd.mmd) | [erd.puml](erd.puml) |
+| Data model classes (JPA entities) | [data-model-class.mmd](data-model-class.mmd) | [data-model-class.puml](data-model-class.puml) |
 
 ## Architecture / deployment (PRD §10)
 
@@ -313,4 +315,206 @@ sequenceDiagram
     User->>API: GET /api/v1/reports/{workUnitId}
     API->>MinIO: get(objectKey)
     API-->>User: report file download
+```
+
+## Data model — ERD (PRD §8)
+
+`report_work_unit` is where idempotency (unique key) and restartability
+(status + attempt_count) are enforced. Spring Batch metadata tables share the same H2
+database (Flyway V1) but are managed by Spring Batch and omitted here.
+
+```mermaid
+erDiagram
+    TENANT {
+        varchar2_10 tenant_id PK "country code, e.g. BE"
+        varchar2_2 country_code
+        varchar2_20 locale
+        varchar2_3 currency
+        boolean enabled
+        clob config_json
+        timestamp created_at
+    }
+
+    TENANT_REPORT_CONTRACT {
+        bigint id PK
+        varchar2_10 tenant_id FK
+        varchar2_50 report_type "UK with tenant_id"
+        boolean enabled
+        date effective_from
+        date effective_to
+        clob params_json "output format, thresholds"
+    }
+
+    ACCOUNT {
+        varchar2_40 account_id PK
+        varchar2_10 tenant_id FK
+        varchar2_100 customer_name
+        boolean eligible "drives partition discovery"
+    }
+
+    TRANSACTION {
+        bigint id PK
+        varchar2_10 tenant_id
+        varchar2_40 account_id FK
+        date business_date
+        number_18_2 amount
+        varchar2_3 currency
+        varchar2_20 txn_type
+        varchar2_200 description
+    }
+
+    REPORT_JOB {
+        bigint id PK
+        varchar2_10 tenant_id "UK(tenant, type, date)"
+        varchar2_50 report_type
+        date business_date
+        bigint job_execution_id "Spring Batch JobExecution"
+        varchar2_20 status
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    REPORT_WORK_UNIT {
+        bigint id PK
+        bigint report_job_id FK
+        varchar2_10 tenant_id "idempotency UK(tenant, account, type, date)"
+        varchar2_40 account_id
+        varchar2_50 report_type
+        date business_date
+        varchar2_20 status "PENDING RUNNING COMPLETED FAILED"
+        int attempt_count
+        varchar2_2000 error_message
+        timestamp updated_at
+    }
+
+    REPORT_ARTIFACT {
+        bigint id PK
+        bigint work_unit_id FK "unique - one artifact per work unit"
+        varchar2_500 object_key "MinIO key, overwrite-by-key"
+        varchar2_100 content_type
+        bigint size_bytes
+        varchar2_64 checksum "sha-256"
+        timestamp created_at
+    }
+
+    TENANT ||--o{ TENANT_REPORT_CONTRACT : "contracted for (onboarding = insert rows)"
+    TENANT ||--o{ ACCOUNT : owns
+    ACCOUNT ||--o{ TRANSACTION : has
+    REPORT_JOB ||--o{ REPORT_WORK_UNIT : "1 per account partition"
+    REPORT_WORK_UNIT ||--o| REPORT_ARTIFACT : produces
+```
+
+## Data model — JPA entity classes
+
+```mermaid
+classDiagram
+    direction LR
+
+    class Tenant {
+        <<entity tenant>>
+        +String tenantId
+        +String countryCode
+        +String locale
+        +String currency
+        +boolean enabled
+        +String configJson
+        +Instant createdAt
+    }
+
+    class TenantReportContract {
+        <<entity tenant_report_contract>>
+        +Long id
+        +String tenantId
+        +String reportType
+        +boolean enabled
+        +LocalDate effectiveFrom
+        +LocalDate effectiveTo
+        +String paramsJson
+        +isActiveOn(businessDate) boolean
+    }
+
+    class Account {
+        <<entity account>>
+        +String accountId
+        +String tenantId
+        +String customerName
+        +boolean eligible
+    }
+
+    class TransactionEntity {
+        <<entity transaction>>
+        +Long id
+        +String tenantId
+        +String accountId
+        +LocalDate businessDate
+        +BigDecimal amount
+        +String currency
+        +String txnType
+        +String description
+    }
+
+    class ReportJob {
+        <<entity report_job>>
+        +Long id
+        +String tenantId
+        +String reportType
+        +LocalDate businessDate
+        +Long jobExecutionId
+        +ReportJobStatus status
+        +Instant createdAt
+        +Instant updatedAt
+    }
+
+    class ReportWorkUnit {
+        <<entity report_work_unit>>
+        +Long id
+        +Long reportJobId
+        +String tenantId
+        +String accountId
+        +String reportType
+        +LocalDate businessDate
+        +WorkUnitStatus status
+        +int attemptCount
+        +String errorMessage
+        +Instant updatedAt
+    }
+
+    class ReportArtifact {
+        <<entity report_artifact>>
+        +Long id
+        +Long workUnitId
+        +String objectKey
+        +String contentType
+        +long sizeBytes
+        +String checksum
+        +Instant createdAt
+    }
+
+    class ReportJobStatus {
+        <<enumeration>>
+        REQUESTED
+        STARTED
+        COMPLETED
+        FAILED
+        RESTARTING
+    }
+
+    class WorkUnitStatus {
+        <<enumeration>>
+        PENDING
+        RUNNING
+        COMPLETED
+        FAILED
+    }
+
+    Tenant "1" --> "*" TenantReportContract : contracts
+    Tenant "1" --> "*" Account : owns
+    Account "1" --> "*" TransactionEntity : transactions
+    ReportJob "1" --> "*" ReportWorkUnit : partitions
+    ReportWorkUnit "1" --> "0..1" ReportArtifact : artifact
+    ReportJob --> ReportJobStatus
+    ReportWorkUnit --> WorkUnitStatus
+
+    note for ReportJob "unique (tenantId, reportType, businessDate) - one job key"
+    note for ReportWorkUnit "idempotency unique key (tenantId, accountId, reportType, businessDate)"
 ```

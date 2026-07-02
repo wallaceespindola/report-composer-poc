@@ -1,0 +1,114 @@
+@startuml erd
+' Report Composer POC — entity-relationship diagram (PRD §8, Flyway V2)
+title Report Composer POC — Data Model (ERD)
+
+skinparam backgroundColor #ffffff
+skinparam class {
+    BackgroundColor #efe3f5
+    BorderColor #7b1fa2
+}
+hide circle
+hide methods
+
+entity "TENANT" as tenant {
+    * tenant_id : VARCHAR2(10) <<PK>> -- country code, e.g. BE
+    --
+    * country_code : VARCHAR2(2)
+    * locale : VARCHAR2(20)
+    * currency : VARCHAR2(3)
+    * enabled : BOOLEAN
+    config_json : CLOB
+    * created_at : TIMESTAMP
+}
+
+entity "TENANT_REPORT_CONTRACT" as contract {
+    * id : BIGINT <<PK>>
+    --
+    * tenant_id : VARCHAR2(10) <<FK>>
+    * report_type : VARCHAR2(50)
+    * enabled : BOOLEAN
+    effective_from : DATE
+    effective_to : DATE
+    params_json : CLOB
+    --
+    UK (tenant_id, report_type)
+}
+
+entity "ACCOUNT" as account {
+    * account_id : VARCHAR2(40) <<PK>>
+    --
+    * tenant_id : VARCHAR2(10) <<FK>>
+    * customer_name : VARCHAR2(100)
+    * eligible : BOOLEAN -- drives partition discovery
+}
+
+entity "TRANSACTION" as txn {
+    * id : BIGINT <<PK>>
+    --
+    * tenant_id : VARCHAR2(10)
+    * account_id : VARCHAR2(40) <<FK>>
+    * business_date : DATE
+    * amount : NUMBER(18,2)
+    * currency : VARCHAR2(3)
+    * txn_type : VARCHAR2(20)
+    description : VARCHAR2(200)
+}
+
+entity "REPORT_JOB" as job {
+    * id : BIGINT <<PK>>
+    --
+    * tenant_id : VARCHAR2(10)
+    * report_type : VARCHAR2(50)
+    * business_date : DATE
+    job_execution_id : BIGINT -- Spring Batch JobExecution
+    * status : VARCHAR2(20)
+    * created_at / updated_at : TIMESTAMP
+    --
+    UK (tenant_id, report_type, business_date)
+}
+
+entity "REPORT_WORK_UNIT" as wu {
+    * id : BIGINT <<PK>>
+    --
+    * report_job_id : BIGINT <<FK>>
+    * tenant_id : VARCHAR2(10)
+    * account_id : VARCHAR2(40)
+    * report_type : VARCHAR2(50)
+    * business_date : DATE
+    * status : VARCHAR2(20) -- PENDING/RUNNING/COMPLETED/FAILED
+    * attempt_count : INT
+    error_message : VARCHAR2(2000)
+    --
+    **idempotency UK** (tenant_id, account_id,\nreport_type, business_date)
+}
+
+entity "REPORT_ARTIFACT" as artifact {
+    * id : BIGINT <<PK>>
+    --
+    * work_unit_id : BIGINT <<FK, unique>>
+    * object_key : VARCHAR2(500) -- MinIO key, overwrite-by-key
+    * content_type : VARCHAR2(100)
+    * size_bytes : BIGINT
+    checksum : VARCHAR2(64) -- SHA-256
+    * created_at : TIMESTAMP
+}
+
+tenant ||--o{ contract : contracted for\n(onboarding = insert rows)
+tenant ||--o{ account : owns
+account ||--o{ txn : has
+job ||--o{ wu : 1 per account partition
+wu ||--o| artifact : produces
+
+note bottom of wu
+  report_work_unit is where idempotency (unique key)
+  and restartability (status + attempt_count) are
+  enforced — PRD §8/§15.
+end note
+
+note as batchnote
+  Spring Batch metadata tables (BATCH_JOB_INSTANCE,
+  BATCH_JOB_EXECUTION, BATCH_STEP_EXECUTION, ...)
+  share the same H2 database (Flyway V1); managed
+  by Spring Batch, omitted here.
+end note
+@enduml

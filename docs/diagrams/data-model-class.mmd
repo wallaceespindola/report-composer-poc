@@ -1,0 +1,111 @@
+%% Report Composer POC — JPA entity class diagram (domain package)
+classDiagram
+    direction LR
+
+    class Tenant {
+        <<entity tenant>>
+        +String tenantId
+        +String countryCode
+        +String locale
+        +String currency
+        +boolean enabled
+        +String configJson
+        +Instant createdAt
+    }
+
+    class TenantReportContract {
+        <<entity tenant_report_contract>>
+        +Long id
+        +String tenantId
+        +String reportType
+        +boolean enabled
+        +LocalDate effectiveFrom
+        +LocalDate effectiveTo
+        +String paramsJson
+        +isActiveOn(businessDate) boolean
+    }
+
+    class Account {
+        <<entity account>>
+        +String accountId
+        +String tenantId
+        +String customerName
+        +boolean eligible
+    }
+
+    class TransactionEntity {
+        <<entity transaction>>
+        +Long id
+        +String tenantId
+        +String accountId
+        +LocalDate businessDate
+        +BigDecimal amount
+        +String currency
+        +String txnType
+        +String description
+    }
+
+    class ReportJob {
+        <<entity report_job>>
+        +Long id
+        +String tenantId
+        +String reportType
+        +LocalDate businessDate
+        +Long jobExecutionId
+        +ReportJobStatus status
+        +Instant createdAt
+        +Instant updatedAt
+    }
+
+    class ReportWorkUnit {
+        <<entity report_work_unit>>
+        +Long id
+        +Long reportJobId
+        +String tenantId
+        +String accountId
+        +String reportType
+        +LocalDate businessDate
+        +WorkUnitStatus status
+        +int attemptCount
+        +String errorMessage
+        +Instant updatedAt
+    }
+
+    class ReportArtifact {
+        <<entity report_artifact>>
+        +Long id
+        +Long workUnitId
+        +String objectKey
+        +String contentType
+        +long sizeBytes
+        +String checksum
+        +Instant createdAt
+    }
+
+    class ReportJobStatus {
+        <<enumeration>>
+        REQUESTED
+        STARTED
+        COMPLETED
+        FAILED
+        RESTARTING
+    }
+
+    class WorkUnitStatus {
+        <<enumeration>>
+        PENDING
+        RUNNING
+        COMPLETED
+        FAILED
+    }
+
+    Tenant "1" --> "*" TenantReportContract : contracts
+    Tenant "1" --> "*" Account : owns
+    Account "1" --> "*" TransactionEntity : transactions
+    ReportJob "1" --> "*" ReportWorkUnit : partitions
+    ReportWorkUnit "1" --> "0..1" ReportArtifact : artifact
+    ReportJob --> ReportJobStatus
+    ReportWorkUnit --> WorkUnitStatus
+
+    note for ReportJob "unique (tenantId, reportType, businessDate) - one job key"
+    note for ReportWorkUnit "idempotency unique key (tenantId, accountId, reportType, businessDate)"

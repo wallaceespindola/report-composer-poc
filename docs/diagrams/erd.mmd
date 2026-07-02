@@ -1,0 +1,83 @@
+%% Report Composer POC — entity-relationship diagram (PRD §8, Flyway V2)
+erDiagram
+    TENANT {
+        varchar2_10 tenant_id PK "country code, e.g. BE"
+        varchar2_2 country_code
+        varchar2_20 locale
+        varchar2_3 currency
+        boolean enabled
+        clob config_json
+        timestamp created_at
+    }
+
+    TENANT_REPORT_CONTRACT {
+        bigint id PK
+        varchar2_10 tenant_id FK
+        varchar2_50 report_type "UK with tenant_id"
+        boolean enabled
+        date effective_from
+        date effective_to
+        clob params_json "output format, thresholds"
+    }
+
+    ACCOUNT {
+        varchar2_40 account_id PK
+        varchar2_10 tenant_id FK
+        varchar2_100 customer_name
+        boolean eligible "drives partition discovery"
+    }
+
+    TRANSACTION {
+        bigint id PK
+        varchar2_10 tenant_id
+        varchar2_40 account_id FK
+        date business_date
+        number_18_2 amount
+        varchar2_3 currency
+        varchar2_20 txn_type
+        varchar2_200 description
+    }
+
+    REPORT_JOB {
+        bigint id PK
+        varchar2_10 tenant_id "UK(tenant, type, date)"
+        varchar2_50 report_type
+        date business_date
+        bigint job_execution_id "Spring Batch JobExecution"
+        varchar2_20 status
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    REPORT_WORK_UNIT {
+        bigint id PK
+        bigint report_job_id FK
+        varchar2_10 tenant_id "idempotency UK(tenant, account, type, date)"
+        varchar2_40 account_id
+        varchar2_50 report_type
+        date business_date
+        varchar2_20 status "PENDING RUNNING COMPLETED FAILED"
+        int attempt_count
+        varchar2_2000 error_message
+        timestamp updated_at
+    }
+
+    REPORT_ARTIFACT {
+        bigint id PK
+        bigint work_unit_id FK "unique - one artifact per work unit"
+        varchar2_500 object_key "MinIO key, overwrite-by-key"
+        varchar2_100 content_type
+        bigint size_bytes
+        varchar2_64 checksum "sha-256"
+        timestamp created_at
+    }
+
+    TENANT ||--o{ TENANT_REPORT_CONTRACT : "contracted for (onboarding = insert rows)"
+    TENANT ||--o{ ACCOUNT : owns
+    ACCOUNT ||--o{ TRANSACTION : has
+    REPORT_JOB ||--o{ REPORT_WORK_UNIT : "1 per account partition"
+    REPORT_WORK_UNIT ||--o| REPORT_ARTIFACT : produces
+
+%% Spring Batch metadata tables (BATCH_JOB_INSTANCE, BATCH_JOB_EXECUTION,
+%% BATCH_STEP_EXECUTION, ...) share the same H2 database (Flyway V1) but are
+%% managed by Spring Batch and omitted here.

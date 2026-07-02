@@ -210,6 +210,8 @@ Full diagrams live in [`docs/diagrams/`](docs/diagrams/README.md) — each in **
 | [Components](docs/diagrams/README.md#components) | Package responsibilities and the three extension interfaces (launcher, strategy, storage) |
 | [Class](docs/diagrams/README.md#class-diagram--strategy-pattern--batch-core) | Strategy pattern, launchers, batch core, idempotency entities |
 | [Sequence](docs/diagrams/README.md#job-lifecycle-sequence) | Job lifecycle: trigger → partition → Kafka → workers → report → status/download |
+| [Data model ERD](docs/diagrams/README.md#data-model--erd-prd-8) | Tables, keys, and relationships — tenant/contract/account/transaction + job/work-unit/artifact |
+| [Data model classes](docs/diagrams/README.md#data-model--jpa-entity-classes) | JPA entities with fields, enums, and the idempotency unique keys |
 
 ## Configuration
 
