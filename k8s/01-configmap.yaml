@@ -24,3 +24,5 @@ data:
   MINIO_BUCKET: "reports"
   K8S_NAMESPACE: "report-composer"
   MASTER_JOB_TEMPLATE: "/app/k8s/master-job-template.yaml"
+  # let the JVM use most of the small pod limit instead of the 25% default
+  JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=60.0"

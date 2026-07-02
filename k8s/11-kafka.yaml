@@ -39,8 +39,10 @@ spec:
               value: "1"
             - name: KAFKA_PROCESS_ROLES
               value: "broker,controller"
+            # empty-host form binds all interfaces; the apache/kafka docker wrapper
+            # rejects an explicit 0.0.0.0 here when formatting KRaft storage
             - name: KAFKA_LISTENERS
-              value: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+              value: "PLAINTEXT://:9092,CONTROLLER://:9093"
             - name: KAFKA_ADVERTISED_LISTENERS
               value: "PLAINTEXT://kafka:9092"
             - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
@@ -51,19 +53,31 @@ spec:
               value: "1@localhost:9093"
             - name: KAFKA_INTER_BROKER_LISTENER_NAME
               value: "PLAINTEXT"
+            # single-broker essentials: internal topics default to RF=3 and would
+            # never be created, breaking consumer-group coordination (FIND_COORDINATOR)
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "1"
+            - name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS
+              value: "0"
             - name: KAFKA_LOG_DIRS
               value: "/tmp/kraft-combined-logs"
             - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
               value: "false" # topics are provisioned by the app on startup, see PRD §9
             - name: CLUSTER_ID
               value: "MkU3OEVBNTcwNTJENDM2Qk" # fixed, arbitrary base64 cluster id — POC only
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xms128m -Xmx256m" # default 1G heap would blow the small pod limit
           resources:
             requests:
-              cpu: "250m"
-              memory: "512Mi"
+              cpu: "100m"
+              memory: "256Mi"
             limits:
-              cpu: "1000m"
-              memory: "1Gi"
+              cpu: "500m"
+              memory: "512Mi"
 ---
 apiVersion: v1
 kind: Service

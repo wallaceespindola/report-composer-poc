@@ -62,7 +62,7 @@ public final class TestFixtures {
                 new AppProperties.Kafka("report.partitions", "report.replies", 10, 2, "report-workers"),
                 new AppProperties.Seed(true, 5, BUSINESS_DATE),
                 new AppProperties.Minio("http://localhost:9000", "reports", "minioadmin", "minioadmin"),
-                new AppProperties.K8s("report-composer", "k8s/master-job-template.yaml"),
+                new AppProperties.K8s("report-composer", "k8s/templates/master-job-template.yaml"),
                 new AppProperties.Master("BE", "ACCOUNT_STATEMENT", "2026-06-30", ""));
     }
 }

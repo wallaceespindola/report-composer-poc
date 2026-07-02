@@ -11,6 +11,22 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 TARGET="${1:-compose}"
 WORKER_REPLICAS="${WORKER_REPLICAS:-3}"
 
+# Compose may ignore the active docker context (e.g. colima) — pin DOCKER_HOST to it
+if [ -z "${DOCKER_HOST:-}" ]; then
+  ctx_host="$(docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)"
+  [ -n "${ctx_host}" ] && export DOCKER_HOST="${ctx_host}"
+fi
+
+# Compose v2 plugin, falling back to the standalone docker-compose binary
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE=(docker-compose)
+else
+  echo "Neither 'docker compose' nor 'docker-compose' found." >&2
+  exit 1
+fi
+
 wait_for_health() {
   local url="$1" timeout="${2:-120}" elapsed=0
   echo "Waiting for ${url} ..."
@@ -27,7 +43,7 @@ wait_for_health() {
 
 start_compose() {
   echo "Starting Report Composer (docker compose, worker replicas=${WORKER_REPLICAS}) ..."
-  docker compose up -d --build --scale "worker=${WORKER_REPLICAS}"
+  "${COMPOSE[@]}" up -d --build --scale "worker=${WORKER_REPLICAS}"
   wait_for_health "http://localhost:8080/health" 180
 
   cat <<EOF
@@ -50,7 +66,9 @@ start_k8s() {
     cluster_cmd="kind"
   elif command -v minikube >/dev/null 2>&1; then
     echo "Starting minikube cluster ..."
-    minikube start
+    # the POC runs several JVMs (api, master, 2+ workers) plus Kafka/MinIO/H2 —
+    # minikube's auto-sizing is too small and starves the apiserver
+    minikube start --cpus="${MINIKUBE_CPUS:-4}" --memory="${MINIKUBE_MEMORY:-5g}"
     cluster_cmd="minikube"
   elif command -v kind >/dev/null 2>&1; then
     echo "Creating kind cluster ..."

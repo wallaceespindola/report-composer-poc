@@ -13,6 +13,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 WORKDIR /app
 COPY --from=build /build/target/report-composer-poc-*.jar app.jar
 # master Job template for LAUNCHER_MODE=k8s (path = MASTER_JOB_TEMPLATE)
-COPY k8s/master-job-template.yaml /app/k8s/master-job-template.yaml
+COPY k8s/templates/master-job-template.yaml /app/k8s/master-job-template.yaml
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

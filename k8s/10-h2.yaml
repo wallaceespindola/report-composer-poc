@@ -34,11 +34,11 @@ spec:
               value: "-ifNotExists"
           resources:
             requests:
-              cpu: "100m"
-              memory: "256Mi"
+              cpu: "50m"
+              memory: "128Mi"
             limits:
-              cpu: "500m"
-              memory: "512Mi"
+              cpu: "250m"
+              memory: "512Mi" # H2's JVM is not container-aware; 256Mi gets OOM-killed
 ---
 apiVersion: v1
 kind: Service

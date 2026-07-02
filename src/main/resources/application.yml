@@ -60,7 +60,7 @@ app:
     secret-key: ${MINIO_SECRET_KEY:minioadmin}
   k8s:
     namespace: ${K8S_NAMESPACE:report-composer}
-    master-job-template: ${MASTER_JOB_TEMPLATE:k8s/master-job-template.yaml}
+    master-job-template: ${MASTER_JOB_TEMPLATE:k8s/templates/master-job-template.yaml}
   master:
     tenant-id: ${JOB_TENANT_ID:}
     report-type: ${JOB_REPORT_TYPE:}

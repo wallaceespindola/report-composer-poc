@@ -15,7 +15,10 @@ spec:
     kind: Deployment
     name: report-composer-worker
   minReplicas: 2
-  maxReplicas: 20
+  # Local single-machine default (PRD §9 local column). The production-scale
+  # intent is maxReplicas: 20 (PRD §10.3) — raise it on a real cluster; on a
+  # laptop VM 20 JVM workers oversubscribe memory and thrash the node.
+  maxReplicas: 4
   metrics:
     - type: Resource
       resource:

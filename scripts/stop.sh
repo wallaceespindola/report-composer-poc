@@ -8,9 +8,19 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 TARGET="${1:-compose}"
 
+# Compose may ignore the active docker context (e.g. colima) — pin DOCKER_HOST to it
+if [ -z "${DOCKER_HOST:-}" ]; then
+  ctx_host="$(docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)"
+  [ -n "${ctx_host}" ] && export DOCKER_HOST="${ctx_host}"
+fi
+
 stop_compose() {
   echo "Stopping Report Composer (docker compose) ..."
-  docker compose down -v
+  if docker compose version >/dev/null 2>&1; then
+    docker compose down -v
+  else
+    docker-compose down -v
+  fi
 }
 
 stop_k8s() {

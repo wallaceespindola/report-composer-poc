@@ -44,7 +44,7 @@ Base package: `com.wallaceespindola.reportcomposer`
 - `strategy/` — `ReportTypeStrategy` interface + `ReportStrategyResolver` registry.
   **Adding a report type = one new `@Component` implementing the interface. Nothing else.**
 - `launcher/` — `LocalMasterLauncher` (async in-process), `K8sMasterLauncher` (Fabric8,
-  loads `k8s/master-job-template.yaml`), `MasterRunner` (APP_ROLE=master entrypoint,
+  loads `k8s/templates/master-job-template.yaml`), `MasterRunner` (APP_ROLE=master entrypoint,
   runs sync then exits).
 - `service/JobService` — boundary validation (tenant enabled, active
   `tenant_report_contract`, registered strategy) + launch/restart; `DataSeeder` seeds

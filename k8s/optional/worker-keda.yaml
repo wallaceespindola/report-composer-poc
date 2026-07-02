@@ -1,9 +1,9 @@
 ---
 # OPTIONAL: KEDA ScaledObject scaling workers on Kafka consumer-group lag
-# (PRD §10.3). This is an alternative/complement to the CPU-based HPA in
-# 22-worker-hpa.yaml — apply only if the KEDA operator is installed in the
-# cluster (https://keda.sh). If KEDA is not installed, skip this file; the
-# HPA alone is sufficient to satisfy autoscaling requirements.
+# (PRD §10.3). Alternative/complement to the CPU-based HPA in 22-worker-hpa.yaml.
+# Lives under k8s/optional/ so `kubectl apply -f k8s/` skips it — it fails
+# without the KEDA operator (https://keda.sh) installed. Apply explicitly:
+#   kubectl apply -f k8s/optional/worker-keda.yaml
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:

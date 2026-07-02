@@ -118,9 +118,13 @@ same machine. The same image runs every role via `APP_ROLE=api|master|worker`.
 ./scripts/start.sh k8s     # or: make up-k8s
 ```
 
-The script starts the cluster, enables metrics-server (HPA dependency), builds and loads
-`report-composer:latest`, applies `k8s/` (namespace, RBAC, H2, Kafka KRaft, MinIO, API,
-workers, HPA, optional KEDA, Ingress), and port-forwards the API. In k8s mode
+The script starts the cluster (minikube sized via `MINIKUBE_CPUS`/`MINIKUBE_MEMORY`,
+defaults 4 CPUs / 5g — the POC runs several JVMs), enables metrics-server (HPA
+dependency), builds and loads `report-composer:latest`, applies `k8s/` (namespace, RBAC,
+H2, Kafka KRaft, MinIO, API, workers, HPA, Ingress; pods use small laptop-friendly
+requests/limits), and port-forwards the API. The KEDA `ScaledObject` lives in
+`k8s/optional/` (apply explicitly after installing KEDA); the master Job template lives
+in `k8s/templates/` (consumed by the API, not `kubectl apply`). In k8s mode
 (`LAUNCHER_MODE=k8s`) each `POST /api/v1/jobs` makes the API **create a master `Job`
 through the Kubernetes API** (Fabric8, RBAC-scoped ServiceAccount); watch with
 `kubectl -n report-composer get jobs,pods,hpa -w`.
