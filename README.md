@@ -11,7 +11,7 @@ with autoscaling.
 Job in k8s mode) and **auto-loads mock data on startup**, so you can generate a report
 with a single API call — no manual data or topic setup.
 
-> 📄 Full specification: [`specs/Report_Composer_POC_PRD.md`](specs/Report_Composer_POC_PRD.md).
+> 📄 Full specification: [`docs/specs/Report_Composer_POC_PRD.md`](docs/specs/Report_Composer_POC_PRD.md).
 > This project follows **Spec-Driven Development** — the PRD is the source of truth.
 
 ---
@@ -196,7 +196,7 @@ report-composer-poc/
 ├── scripts/          # start/stop .sh/.ps1/.bat — compose (default) + k8s targets
 ├── .github/workflows/ci.yml
 ├── Dockerfile  ·  docker-compose.yml  ·  Makefile
-└── specs/Report_Composer_POC_PRD.md
+└── docs/                # specs/Report_Composer_POC_PRD.md + diagrams/
 ```
 
 ## Diagrams

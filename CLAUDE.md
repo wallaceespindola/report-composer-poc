@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project status
 
 Fully implemented, spec-driven POC. The single source of truth is
-`specs/Report_Composer_POC_PRD.md` — follow Spec-Driven Development: behavior changes
+`docs/specs/Report_Composer_POC_PRD.md` — follow Spec-Driven Development: behavior changes
 update the spec first, then the code.
 
 Stack: Java 21, Spring Boot 3.4.x, Maven single module, Spring Batch Remote
