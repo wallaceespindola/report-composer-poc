@@ -136,6 +136,79 @@ in `k8s/templates/` (consumed by the API, not `kubectl apply`). In k8s mode
 through the Kubernetes API** (Fabric8, RBAC-scoped ServiceAccount); watch with
 `kubectl -n report-composer get jobs,pods,hpa -w`.
 
+## Start & stop scripts — what actually happens
+
+Both scripts take a target: `compose` (default) or `k8s`. Windows equivalents
+(`.ps1`/`.bat`) mirror the same behavior.
+
+### `scripts/start.sh [compose]`
+
+1. Resolves the compose command (`docker compose` plugin, falls back to standalone
+   `docker-compose`) and pins `DOCKER_HOST` to the active docker context (colima-safe).
+2. `docker compose up -d --build --scale worker=$WORKER_REPLICAS` (default 3) — builds
+   the app image and starts, in dependency order: **Kafka** (KRaft, healthcheck) →
+   **H2** TCP server (Oracle mode) → **MinIO** (+ one-shot `mc` job creating the
+   `reports` bucket) → **api** → **workers** (wait for the api to be healthy) →
+   **kafka-ui** and **frontend** (nginx).
+3. On api startup the application initializes its own infrastructure:
+   - **Kafka topics** `report.partitions` (10 partitions) and `report.replies`
+     provisioned via `KafkaAdmin` — no manual topic creation;
+   - **Flyway migrations**: V1 Spring Batch metadata schema, V2 app schema,
+     V3 seed tenants (`BE`, `FR`, `ES`) + report contracts;
+   - **mock data seeding** (api role only, only when the account table is empty):
+     ~50 accounts per tenant with transactions on `SEED_BUSINESS_DATE`.
+4. Waits for `http://localhost:8080/health` to return 200, then prints all URLs.
+
+### `scripts/stop.sh [compose]`
+
+`docker compose down -v` — stops and removes all containers, the network, **and the
+volumes** (H2 data + MinIO artifacts are wiped; next start re-migrates and re-seeds
+from scratch).
+
+### `scripts/start.sh k8s`
+
+1. Picks a running minikube/kind, else starts minikube
+   (`--cpus $MINIKUBE_CPUS --memory $MINIKUBE_MEMORY`, defaults 4 / 5g) or creates a
+   kind cluster.
+2. Enables **metrics-server** (HPA dependency; patched with `--kubelet-insecure-tls`
+   on kind).
+3. Builds `report-composer:latest` and loads it into the cluster
+   (`minikube image load` / `kind load docker-image`).
+4. `kubectl apply -f k8s/` — namespace, ConfigMap/Secret, RBAC (ServiceAccount the API
+   uses to create master Jobs), H2, Kafka, MinIO (+ bucket job), API + workers
+   (with startup probes), worker HPA, Ingress.
+5. Waits for the api rollout, then port-forwards `svc/report-composer-api` to
+   `localhost:8080` and waits for `/health`. The same in-app initialization as compose
+   (topics, Flyway, seed) runs inside the api pod.
+
+### `scripts/stop.sh k8s`
+
+Kills the background port-forward and `kubectl delete -f k8s/` (namespace and all
+resources removed — DB/MinIO data gone with them). The cluster itself is left running;
+tear it down with `minikube delete` / `kind delete cluster --name report-composer`.
+
+## Command reference
+
+| Command | What it does |
+|---------|--------------|
+| `./scripts/start.sh` / `make up` | Full stack via Docker Compose (build, 3 workers, health wait, prints URLs) |
+| `./scripts/stop.sh` / `make down` | Compose down incl. volumes (wipes data) |
+| `./scripts/start.sh k8s` / `make up-k8s` | Local Kubernetes path (minikube/kind + HPA + API-spawned master Jobs) |
+| `./scripts/stop.sh k8s` / `make down-k8s` | Delete all k8s resources, keep the cluster |
+| `WORKER_REPLICAS=5 ./scripts/start.sh` | Start compose with 5 workers |
+| `docker compose up -d --scale worker=5` | Rescale workers live (compose) |
+| `./mvnw -B verify` / `make test` | Build + all tests + JaCoCo ≥80% line gate |
+| `./mvnw test -Dtest=JobServiceTest` | Single test class (`#method` for one test) |
+| `make image` | Build the `report-composer:latest` image only |
+| `curl -X POST localhost:8080/api/v1/jobs -H 'Content-Type: application/json' -d '{"tenantId":"BE","reportType":"ACCOUNT_STATEMENT","businessDate":"2026-06-30"}'` | Trigger a job |
+| `curl localhost:8080/api/v1/jobs` | List jobs + partition progress |
+| `curl localhost:8080/api/v1/jobs/{id}/partitions` | Per-account partition status |
+| `curl -X POST localhost:8080/api/v1/jobs/{id}/restart` | Restart a FAILED job (completed partitions skipped) |
+| `curl -OJ localhost:8080/api/v1/reports/{workUnitId}` | Download a generated report |
+| `kubectl -n report-composer get jobs,pods,hpa -w` | Watch master Jobs / workers / autoscaling (k8s) |
+| `kubectl -n report-composer logs -l app=report-composer-worker -f` | Tail worker logs (k8s) |
+| `docker compose logs -f worker` | Tail worker logs (compose) |
+
 ## Build & test
 
 ```bash
