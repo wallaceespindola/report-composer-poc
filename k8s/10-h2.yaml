@@ -1,0 +1,57 @@
+---
+# H2 in Oracle-compatibility mode, run as a TCP server so master, api, and
+# workers all share one database (PRD §8). Not for production use.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: h2
+  namespace: report-composer
+  labels:
+    app.kubernetes.io/name: report-composer
+    app.kubernetes.io/component: h2
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: h2
+  template:
+    metadata:
+      labels:
+        app: h2
+        app.kubernetes.io/name: report-composer
+        app.kubernetes.io/component: h2
+    spec:
+      containers:
+        - name: h2
+          image: oscarfonts/h2:latest
+          ports:
+            - containerPort: 1521
+              name: tcp
+          env:
+            - name: H2_OPTIONS
+              value: "-ifNotExists"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: h2
+  namespace: report-composer
+  labels:
+    app.kubernetes.io/name: report-composer
+    app.kubernetes.io/component: h2
+spec:
+  selector:
+    app: h2
+  ports:
+    - name: tcp
+      port: 1521
+      targetPort: 1521

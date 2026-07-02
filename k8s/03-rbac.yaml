@@ -1,0 +1,46 @@
+---
+# ServiceAccount used by the API deployment. The API uses the Fabric8 Kubernetes
+# client to create/watch the master Job on POST /api/v1/jobs (see PRD §10.1).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: report-composer-api
+  namespace: report-composer
+  labels:
+    app.kubernetes.io/name: report-composer
+    app.kubernetes.io/component: api
+---
+# Minimal namespace-scoped permissions: the API only needs to manage master Jobs
+# and observe their pods, nothing cluster-wide.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: report-composer-job-manager
+  namespace: report-composer
+  labels:
+    app.kubernetes.io/name: report-composer
+    app.kubernetes.io/component: api
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: report-composer-job-manager-binding
+  namespace: report-composer
+  labels:
+    app.kubernetes.io/name: report-composer
+    app.kubernetes.io/component: api
+subjects:
+  - kind: ServiceAccount
+    name: report-composer-api
+    namespace: report-composer
+roleRef:
+  kind: Role
+  name: report-composer-job-manager
+  apiGroup: rbac.authorization.k8s.io

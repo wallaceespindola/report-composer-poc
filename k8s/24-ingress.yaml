@@ -1,0 +1,33 @@
+---
+# Ingress for the API. POC-only: no TLS/cert-manager configured since local
+# minikube/kind clusters typically don't have a public DNS name or ACME
+# reachability; add TLS + cert-manager annotations if this is ever exposed
+# beyond a local cluster.
+#
+# Frontend note: if the frontend is served as its own container/pod (rather
+# than static assets served by the API), add a second `http.paths` rule (or a
+# second Ingress) routing "/" to the frontend Service, keeping "/api" and
+# "/actuator" routed to report-composer-api as below.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: report-composer-api
+  namespace: report-composer
+  labels:
+    app.kubernetes.io/name: report-composer
+    app.kubernetes.io/component: api
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: report-composer.local
+      http:
+        paths:
+          - path: /(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: report-composer-api
+                port:
+                  number: 8080

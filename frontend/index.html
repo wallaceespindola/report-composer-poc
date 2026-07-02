@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Report Composer POC</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Report Composer POC</h1>
+  </header>
+
+  <main>
+    <div id="error-banner" class="banner hidden" role="alert"></div>
+
+    <section class="card">
+      <h2>Start job</h2>
+      <form id="job-form">
+        <div class="field">
+          <label for="tenant">Tenant</label>
+          <select id="tenant" required></select>
+        </div>
+        <div class="field">
+          <label for="report-type">Report type</label>
+          <select id="report-type" required></select>
+        </div>
+        <div class="field">
+          <label for="business-date">Business date</label>
+          <input type="date" id="business-date" value="2026-06-30" required />
+        </div>
+        <button type="submit">Start job</button>
+        <span id="job-form-msg" class="form-msg"></span>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Jobs</h2>
+      <table id="jobs-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>ID</th>
+            <th>Tenant</th>
+            <th>Type</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Progress</th>
+            <th>Start</th>
+            <th>End</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="jobs-tbody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

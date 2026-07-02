@@ -1,0 +1,8 @@
+---
+# Namespace for the Report Composer POC.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: report-composer
+  labels:
+    app.kubernetes.io/name: report-composer

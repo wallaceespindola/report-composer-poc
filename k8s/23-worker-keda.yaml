@@ -1,0 +1,29 @@
+---
+# OPTIONAL: KEDA ScaledObject scaling workers on Kafka consumer-group lag
+# (PRD §10.3). This is an alternative/complement to the CPU-based HPA in
+# 22-worker-hpa.yaml — apply only if the KEDA operator is installed in the
+# cluster (https://keda.sh). If KEDA is not installed, skip this file; the
+# HPA alone is sufficient to satisfy autoscaling requirements.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: report-composer-worker-scaledobject
+  namespace: report-composer
+  labels:
+    app.kubernetes.io/name: report-composer
+    app.kubernetes.io/component: worker
+spec:
+  scaleTargetRef:
+    name: report-composer-worker
+  minReplicaCount: 2
+  maxReplicaCount: 20
+  cooldownPeriod: 60
+  pollingInterval: 15
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: kafka:9092
+        consumerGroup: report-workers
+        topic: report.partitions
+        lagThreshold: "5"
+        allowIdleConsumers: "false"

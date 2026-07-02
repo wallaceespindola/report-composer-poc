@@ -1,0 +1,74 @@
+---
+# Long-lived worker pool consuming the Kafka request topic (PRD §10). Resource
+# requests/limits are required here so the HPA can compute CPU utilization.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: report-composer-worker
+  namespace: report-composer
+  labels:
+    app.kubernetes.io/name: report-composer
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: report-composer-worker
+  template:
+    metadata:
+      labels:
+        app: report-composer-worker
+        app.kubernetes.io/name: report-composer
+        app.kubernetes.io/component: worker
+    spec:
+      terminationGracePeriodSeconds: 60 # allow the in-flight partition to finish and commit offset
+      containers:
+        - name: worker
+          image: report-composer:latest
+          imagePullPolicy: Never # built locally and loaded into minikube/kind
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: APP_ROLE
+              value: "worker"
+          envFrom:
+            - configMapRef:
+                name: report-composer-config
+            - secretRef:
+                name: report-composer-secret
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: report-composer-worker
+  namespace: report-composer
+  labels:
+    app.kubernetes.io/name: report-composer
+    app.kubernetes.io/component: worker
+spec:
+  selector:
+    app: report-composer-worker
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

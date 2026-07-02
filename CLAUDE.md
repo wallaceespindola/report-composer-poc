@@ -4,68 +4,79 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-This is a **greenfield, spec-driven POC**. As of now the repo contains only the
-product spec (`specs/Report_Composer_POC_PRD.md`), `README.md`, `LICENSE`, and a
-Java-oriented `.gitignore`. There is **no build system, source code, or tests yet**.
+Fully implemented, spec-driven POC. The single source of truth is
+`specs/Report_Composer_POC_PRD.md` — follow Spec-Driven Development: behavior changes
+update the spec first, then the code.
 
-The single source of truth for what to build is `specs/Report_Composer_POC_PRD.md`.
-Read it before implementing anything. Follow Spec-Driven Development: changes to
-behavior should be reflected in the spec first, then implemented.
+Stack: Java 21, Spring Boot 3.4.x, Maven single module, Spring Batch Remote
+Partitioning over Kafka (`spring-batch-integration`), H2 in Oracle mode + Flyway,
+MinIO, Fabric8 (k8s master Job), JUnit 5 + Mockito.
 
-When scaffolding the project, default to the stack the spec and architecture imply
-(see below) and the Java standards in the global preferences: Java 21+, Spring Boot
-3.4.x, Maven, JUnit 5 + Mockito.
+## Build / test / run commands
 
-## What this system is
-
-A distributed **Report Composer**: it fans out report generation across many worker
-pods using **Spring Batch Remote Partitioning** over **Apache Kafka**, running on
-**OpenShift**, reading/writing **Oracle** plus object storage.
-
-## Architecture (from the PRD)
-
-```
-API/Scheduler
-  -> OpenShift Master Job        (the Spring Batch "manager")
-  -> Spring Batch Manager Step   (discovers accounts, creates partitions)
-  -> Kafka                       (carries StepExecutionRequests to workers)
-  -> Worker Deployment           (scaled 2-20 replicas via KEDA)
-  -> Remote Worker Step          (one StepExecution per partition)
-  -> Oracle + Object Storage     (persisted report output)
+```bash
+./mvnw -B verify                       # build + tests + JaCoCo gate (>=80% line)
+./mvnw test -Dtest=JobServiceTest      # single test class
+./mvnw test -Dtest=JobServiceTest#startRejectsUnknownTenant   # single test method
+./scripts/start.sh        # full POC via Docker Compose (api + 3 workers + kafka/h2/minio)
+./scripts/start.sh k8s    # local Kubernetes path (minikube/kind)
+make up | down | test | image | up-k8s | down-k8s
 ```
 
-Key design invariants — preserve these when implementing:
+Manager/worker roles: same app, selected by `APP_ROLE=api|master|worker` env var.
+`LAUNCHER_MODE=local` runs the manager step in-process in the api role (Compose path);
+`LAUNCHER_MODE=k8s` makes the API create a master `Job` via Fabric8.
 
-- **One global `JobExecution` per `(tenantId, reportType, businessDate)`.**
-- **One partition per `accountId`.** Each worker thread executes exactly one remote
-  `StepExecution`. ExecutionContext carries `tenantId`, `accountId`, `reportType`,
-  `businessDate`.
-- **Manager is an OpenShift Job; workers are a Deployment + KEDA** (autoscaled on
-  Kafka lag). Manager and workers are the same app in different roles, not two
-  codebases.
-- **Idempotent outputs** — re-running a partition must not duplicate reports
-  (one report per account/day). Restart of failed partitions must be supported.
-- **Strategy Pattern for report types**: a `ReportTypeStrategy` is resolved by
-  `reportType`. Adding a new report type = a new Strategy implementation, no changes
-  to the partitioning/orchestration core.
-- **Multi-tenant via DB config**: onboarding a new tenant must require database
-  configuration only (no code change).
+## Architecture map (package = responsibility)
 
-## Data model (from the PRD)
+Base package: `com.wallaceespindola.reportcomposer`
 
-Tables: `tenant`, `report_job`, `report_work_unit`. `report_work_unit` is the
-per-account/partition unit of work and is where idempotency and restartability are
-tracked.
+- `batch/master/` — `AccountPartitioner` (one partition per account + creates
+  `report_job`/`report_work_unit` rows idempotently), `ManagerBatchConfig` (manager step,
+  polling aggregation variant — workers report through the shared job repository, no
+  reply-channel aggregation), `ReportJobExecutionListener` (syncs `report_job` row).
+- `batch/worker/` — `WorkerBatchConfig` (Kafka consumer group -> worker step),
+  `ReportWorkerTasklet` (one partition: load txns -> resolve strategy -> MinIO ->
+  artifact row), `WorkUnitStateService` (REQUIRES_NEW status transitions so FAILED
+  survives the step rollback).
+- `batch/BatchMessageSerde` — Java serialization of `StepExecutionRequest` over Kafka;
+  the ExecutionContext itself travels through the shared H2 job repository, not Kafka.
+- `strategy/` — `ReportTypeStrategy` interface + `ReportStrategyResolver` registry.
+  **Adding a report type = one new `@Component` implementing the interface. Nothing else.**
+- `launcher/` — `LocalMasterLauncher` (async in-process), `K8sMasterLauncher` (Fabric8,
+  loads `k8s/master-job-template.yaml`), `MasterRunner` (APP_ROLE=master entrypoint,
+  runs sync then exits).
+- `service/JobService` — boundary validation (tenant enabled, active
+  `tenant_report_contract`, registered strategy) + launch/restart; `DataSeeder` seeds
+  accounts/transactions only in the api role, only when the account table is empty.
+- `config/` — `AppProperties` (all env config, PRD §13), Kafka topic provisioning
+  (`NewTopic` beans — the app owns topic creation), launchers, MinIO client.
 
-## Recommended runtime defaults (from the PRD)
+Flyway migrations (`src/main/resources/db/migration/`): V1 = Spring Batch metadata
+schema (do not let Boot initialize it — `spring.batch.jdbc.initialize-schema: never`),
+V2 = app schema, V3 = seed tenants (BE, FR, ES) + contracts.
 
-- Worker replicas: 2–20
-- Kafka partitions: 100
-- Kafka consumer concurrency per pod: 2
+## Design invariants — preserve these
 
-## Build/run commands
+- One global `JobExecution` per `(tenantId, reportType, businessDate)` (identifying job
+  parameters). One partition per `accountId`, named `partition-{accountId}` (stable
+  names are what make Spring Batch restarts skip completed partitions).
+- Idempotency lives in the DB unique key `report_work_unit(tenant, account, type, date)`
+  + deterministic MinIO object keys (overwrite-by-key). Don't move it to Kafka semantics.
+- Workers are generic: tenant onboarding must stay DB-config-only (`tenant` +
+  `tenant_report_contract` rows), no code change, no worker redeploy.
+- The API rejects jobs without an active contract or registered strategy (FR-18) —
+  keep validation at the boundary in `JobService`.
+- Role-conditional beans: manager config is active for roles `api` and `master`; worker
+  config only for `worker`; seeder only for `api`. Watch the `@ConditionalOn*`
+  expressions when adding beans so worker pods don't need api-only dependencies.
 
-None defined yet. Once the project is scaffolded as a Maven Spring Boot app, this
-section should be updated with the real commands (e.g. `./mvnw test`,
-`./mvnw spring-boot:run`, single-test invocation, and how to start the app in
-manager vs. worker role).
+## Conventions
+
+- Lombok + records; DTOs are records under `api/dto`. Max line length 120.
+- Tests mirror main packages; Mockito for collaborators; `@WebMvcTest` for controllers;
+  `@DataJpaTest` with `MODE=Oracle` URL for persistence. Coverage gate: 80% line
+  (config/wiring classes are excluded in the jacoco plugin config).
+- `frontend/` is plain HTML/JS/CSS with no build step; Maven copies it into
+  `static/` so the API serves it too. Keep fetch URLs relative.
+- All API responses include `timestamp`; errors use `{timestamp, status, error, message}`.

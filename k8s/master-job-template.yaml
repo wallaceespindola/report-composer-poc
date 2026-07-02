@@ -1,0 +1,56 @@
+---
+# Template loaded by the API and filled in at runtime (Fabric8 client) for
+# each POST /api/v1/jobs request — PRD §10.1. This file is NOT applied
+# directly with `kubectl apply`; it is read from disk by the api container
+# (mounted at MASTER_JOB_TEMPLATE) and used as a Job manifest builder: the
+# api overrides metadata.generateName suffix and the four placeholder env
+# values (JOB_TENANT_ID, JOB_REPORT_TYPE, JOB_BUSINESS_DATE,
+# RESTART_EXECUTION_ID) before creating the Job via the Kubernetes API.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: report-master-
+  namespace: report-composer
+  labels:
+    app.kubernetes.io/name: report-composer
+    app.kubernetes.io/component: master
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: report-composer-master
+        app.kubernetes.io/name: report-composer
+        app.kubernetes.io/component: master
+    spec:
+      restartPolicy: Never
+      serviceAccountName: report-composer-api
+      containers:
+        - name: master
+          image: report-composer:latest
+          imagePullPolicy: Never # built locally and loaded into minikube/kind
+          env:
+            - name: APP_ROLE
+              value: "master"
+            # Placeholders — overridden by the API at Job-creation time.
+            - name: JOB_TENANT_ID
+              value: ""
+            - name: JOB_REPORT_TYPE
+              value: ""
+            - name: JOB_BUSINESS_DATE
+              value: ""
+            - name: RESTART_EXECUTION_ID
+              value: ""
+          envFrom:
+            - configMapRef:
+                name: report-composer-config
+            - secretRef:
+                name: report-composer-secret
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"

@@ -1,0 +1,75 @@
+---
+# Always-on API. Handles REST calls and, in k8s launcher mode, creates the
+# master Job via the Fabric8 client using the report-composer-api ServiceAccount
+# (PRD §10, §10.1).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: report-composer-api
+  namespace: report-composer
+  labels:
+    app.kubernetes.io/name: report-composer
+    app.kubernetes.io/component: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: report-composer-api
+  template:
+    metadata:
+      labels:
+        app: report-composer-api
+        app.kubernetes.io/name: report-composer
+        app.kubernetes.io/component: api
+    spec:
+      serviceAccountName: report-composer-api
+      containers:
+        - name: api
+          image: report-composer:latest
+          imagePullPolicy: Never # built locally and loaded into minikube/kind
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: APP_ROLE
+              value: "api"
+          envFrom:
+            - configMapRef:
+                name: report-composer-config
+            - secretRef:
+                name: report-composer-secret
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: report-composer-api
+  namespace: report-composer
+  labels:
+    app.kubernetes.io/name: report-composer
+    app.kubernetes.io/component: api
+spec:
+  selector:
+    app: report-composer-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

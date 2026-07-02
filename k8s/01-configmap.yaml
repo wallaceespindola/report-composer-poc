@@ -1,0 +1,26 @@
+---
+# Non-sensitive runtime configuration shared by api/master/worker roles.
+# Mirrors the env contract used by docker-compose (see docker-compose.yml / .env.example).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: report-composer-config
+  namespace: report-composer
+  labels:
+    app.kubernetes.io/name: report-composer
+data:
+  SPRING_PROFILES_ACTIVE: "k8s"
+  LAUNCHER_MODE: "k8s"
+  DB_URL: "jdbc:h2:tcp://h2:1521//opt/h2-data/report;MODE=Oracle;DB_CLOSE_DELAY=-1"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  KAFKA_REQUEST_TOPIC: "report.partitions"
+  KAFKA_REPLY_TOPIC: "report.replies"
+  KAFKA_REQUEST_PARTITIONS: "10"
+  KAFKA_CONCURRENCY: "2"
+  SEED_ENABLED: "true"
+  SEED_ACCOUNTS_PER_TENANT: "50"
+  SEED_BUSINESS_DATE: "2026-06-30"
+  MINIO_ENDPOINT: "http://minio:9000"
+  MINIO_BUCKET: "reports"
+  K8S_NAMESPACE: "report-composer"
+  MASTER_JOB_TEMPLATE: "/app/k8s/master-job-template.yaml"

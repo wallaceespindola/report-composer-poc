@@ -1,0 +1,72 @@
+spring:
+  application:
+    name: report-composer
+  datasource:
+    url: ${DB_URL:jdbc:h2:mem:report;MODE=Oracle;DB_CLOSE_DELAY=-1}
+    username: ${DB_USER:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  batch:
+    jdbc:
+      initialize-schema: never # Batch metadata tables are created by Flyway (V1), shared by master and workers
+    job:
+      enabled: false # jobs are launched via the API / master runner, never automatically
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      auto-offset-reset: earliest
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  role: ${APP_ROLE:api} # api | master | worker
+  launcher: ${LAUNCHER_MODE:local} # local (manager step in-process) | k8s (spawn master Job via K8s API)
+  kafka:
+    request-topic: ${KAFKA_REQUEST_TOPIC:report.partitions}
+    reply-topic: ${KAFKA_REPLY_TOPIC:report.replies}
+    request-partitions: ${KAFKA_REQUEST_PARTITIONS:10}
+    concurrency: ${KAFKA_CONCURRENCY:2}
+    consumer-group: report-workers
+  seed:
+    enabled: ${SEED_ENABLED:true}
+    accounts-per-tenant: ${SEED_ACCOUNTS_PER_TENANT:50}
+    business-date: ${SEED_BUSINESS_DATE:2026-06-30}
+  minio:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    bucket: ${MINIO_BUCKET:reports}
+    access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  k8s:
+    namespace: ${K8S_NAMESPACE:report-composer}
+    master-job-template: ${MASTER_JOB_TEMPLATE:k8s/master-job-template.yaml}
+  master:
+    tenant-id: ${JOB_TENANT_ID:}
+    report-type: ${JOB_REPORT_TYPE:}
+    business-date: ${JOB_BUSINESS_DATE:}
+    restart-execution-id: ${RESTART_EXECUTION_ID:}
+
+logging:
+  pattern:
+    level: "%5p [tenant=%X{tenantId} account=%X{accountId} type=%X{reportType} date=%X{businessDate}]"
