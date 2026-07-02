@@ -1,0 +1,74 @@
+@startuml sequence
+' Report Composer POC — job lifecycle: trigger -> partition -> workers -> report
+title Report Composer POC — Job Lifecycle Sequence
+
+skinparam backgroundColor #ffffff
+skinparam sequence {
+    ParticipantBackgroundColor #d4e8f0
+    ParticipantBorderColor #0277bd
+    ActorBackgroundColor #e8f5e9
+    LifeLineBorderColor #90a4ae
+}
+autonumber
+
+actor User as user
+participant "API\n(JobController / JobService)" as api
+participant "Kubernetes API" as k8s
+participant "Master\n(manager step)" as master
+queue "Kafka\nreport.partitions" as kafka
+participant "Worker\n(consumer group report-workers)" as worker
+database "H2 (shared)\njob repo + app tables" as db
+database "MinIO" as minio
+
+user -> api: POST /api/v1/jobs\n{tenantId, reportType, businessDate}
+activate api
+api -> db: validate: tenant enabled,\nactive tenant_report_contract,\nregistered strategy (FR-18)
+alt invalid request
+    api --> user: 400 / 404 / 409 {timestamp, error, message}
+else valid
+    api -> db: upsert report_job (REQUESTED)
+    alt LAUNCHER_MODE = k8s
+        api -> k8s: create master Job\n(Fabric8, template + job-key env)
+        k8s -> master: schedule pod (APP_ROLE=master)
+    else LAUNCHER_MODE = local (Compose)
+        api -> master: run manager step in-process (async)
+    end
+    api --> user: 202 Accepted {jobExecutionId}
+end
+deactivate api
+
+activate master
+master -> db: discover eligible accounts;\ninsert one report_work_unit per account\n(insert-if-absent, idempotent)
+master -> kafka: StepExecutionRequest per partition\n(stable name: partition-{accountId})
+loop until all partitions terminal
+    master -> db: poll step executions\n(polling aggregation variant, PRD §9)
+end
+
+kafka -> worker: request\n(each partition -> exactly one worker)
+activate worker
+worker -> db: load ExecutionContext + work unit
+alt work unit already COMPLETED
+    worker -> worker: skip (idempotent re-run)
+else pending / failed
+    worker -> db: markRunning (attempt + 1) [REQUIRES_NEW]
+    worker -> worker: resolve ReportTypeStrategy by reportType;\ngenerate report (bounded retry + backoff, FR-8)
+    worker -> minio: put artifact (deterministic key, overwrite)
+    worker -> db: upsert report_artifact; markCompleted
+end
+deactivate worker
+
+master -> db: all partitions done ->\nJobExecution + report_job COMPLETED
+deactivate master
+
+user -> api: GET /api/v1/jobs/{id} (+ /partitions)
+api --> user: status + completed/total/failed
+user -> api: GET /api/v1/reports/{workUnitId}
+api -> minio: get(objectKey)
+api --> user: report file (attachment)
+
+note over master, worker
+  Restart (FR-9): POST /jobs/{id}/restart relaunches with the same
+  identifying parameters — Spring Batch skips COMPLETED partitions,
+  only failed/incomplete work units re-run.
+end note
+@enduml

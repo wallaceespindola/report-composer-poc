@@ -1,0 +1,40 @@
+%% Report Composer POC — architecture / deployment topology (PRD §10)
+graph TB
+    User[User / Scheduler]
+    FE[Frontend<br/>static SPA - nginx :3000]
+
+    subgraph K8S["Kubernetes namespace: report-composer"]
+        API["API Deployment<br/>APP_ROLE=api<br/>REST + Swagger :8080"]
+        MASTER["Master Job (per request)<br/>APP_ROLE=master<br/>manager step: discover + partition"]
+        subgraph WORKERS["Worker Deployment (HPA 2..N, optional KEDA on lag)"]
+            W1["Worker pod<br/>APP_ROLE=worker"]
+            W2["Worker pod<br/>APP_ROLE=worker"]
+        end
+        KAFKA["Kafka (KRaft)<br/>report.partitions - 10 partitions<br/>consumer group report-workers"]
+        H2[("H2 TCP server<br/>MODE=Oracle<br/>app tables + Spring Batch metadata")]
+        MINIO[("MinIO<br/>bucket: reports")]
+    end
+
+    User --> FE
+    FE -->|"/api proxy"| API
+    API -->|"Fabric8: create Job<br/>(LAUNCHER_MODE=k8s)"| MASTER
+    MASTER -->|"StepExecutionRequest<br/>per account"| KAFKA
+    KAFKA --> W1
+    KAFKA --> W2
+    MASTER -->|"partitions + poll completion"| H2
+    W1 --> H2
+    W2 --> H2
+    W1 -->|report artifact| MINIO
+    W2 -->|report artifact| MINIO
+    API -->|status, downloads| H2
+    API -->|artifact stream| MINIO
+
+    classDef app fill:#d4e8f0,stroke:#0277bd,color:#000
+    classDef infra fill:#f0e8d8,stroke:#b8860b,color:#000
+    classDef edge fill:#e8f5e9,stroke:#2f9e44,color:#000
+    class API,MASTER,W1,W2 app
+    class KAFKA,H2,MINIO infra
+    class User,FE edge
+
+%% Compose mode: same picture minus the Master Job — LAUNCHER_MODE=local runs the
+%% manager step in-process inside the API container; workers are scaled containers.

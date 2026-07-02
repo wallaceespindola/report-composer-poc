@@ -1,0 +1,78 @@
+%% Report Composer POC — component diagram (package = responsibility)
+graph LR
+    subgraph API["api — REST boundary"]
+        JC[JobController]
+        TC[TenantController]
+        RTC[ReportTypeController]
+        RC[ReportController]
+    end
+
+    subgraph SVC["service"]
+        JS["JobService<br/>contract validation + orchestration"]
+        DS["DataSeeder<br/>idempotent mock data (api role)"]
+        RDS[ReportDownloadService]
+    end
+
+    subgraph LAUNCH["launcher"]
+        ML{{MasterLauncher}}
+        LML["LocalMasterLauncher<br/>in-process, async"]
+        KML["K8sMasterLauncher<br/>Fabric8 creates master Job"]
+        MR["MasterRunner<br/>APP_ROLE=master entrypoint"]
+    end
+
+    subgraph MASTER["batch.master"]
+        AP["AccountPartitioner<br/>1 partition per account"]
+        MS["managerStep<br/>polling aggregation"]
+    end
+
+    subgraph WORKER["batch.worker"]
+        WS[workerStep]
+        WT["ReportWorkerTasklet<br/>generate + persist idempotently"]
+    end
+
+    subgraph STRAT["strategy — agreed catalog"]
+        RSR[ReportStrategyResolver]
+        RTS{{ReportTypeStrategy}}
+        AS[AccountStatementStrategy]
+        TS[TaxSummaryStrategy]
+    end
+
+    subgraph DATA["repository / storage"]
+        REPO["Spring Data JPA repositories"]
+        AST{{ArtifactStorage}}
+        MAS[MinioArtifactStorage]
+    end
+
+    KAFKA[("Kafka")]
+    H2[("H2 Oracle mode")]
+    MINIO[("MinIO")]
+    K8SAPI["Kubernetes API"]
+
+    JC --> JS
+    RC --> RDS
+    JS --> ML
+    ML -.-> LML
+    ML -.-> KML
+    KML --> K8SAPI
+    LML --> MS
+    MR --> MS
+    MS --> AP
+    MS -->|StepExecutionRequests| KAFKA
+    KAFKA --> WS
+    WS --> WT
+    WT --> RSR
+    RSR -.-> RTS
+    RTS -.-> AS
+    RTS -.-> TS
+    WT --> AST
+    AST -.-> MAS
+    MAS --> MINIO
+    JS --> REPO
+    DS --> REPO
+    WT --> REPO
+    AP --> REPO
+    RDS --> AST
+    REPO --> H2
+
+    classDef iface fill:#a6e3a1,stroke:#2f9e44,color:#000
+    class ML,RTS,AST iface

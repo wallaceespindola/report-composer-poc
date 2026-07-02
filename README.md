@@ -25,12 +25,19 @@ account**, and distributes those partitions over a **Kafka** consumer group to a
 **Strategy** selected by `reportType`, uploads it to **MinIO**, and persists it
 **idempotently**. A minimal frontend triggers jobs and shows live per-partition status.
 
-```
-API/Scheduler
-  -> Master (manager step)         (discover accounts, one partition per account)
-  -> Kafka  report.partitions      (StepExecutionRequests -> consumer group)
-  -> Workers (scaled 2..N)         (one remote StepExecution per partition)
-  -> H2 (Oracle mode) + MinIO      (idempotent, restartable output)
+```mermaid
+graph LR
+    API["API<br/>(REST trigger)"] -->|"create master<br/>(k8s Job / in-process)"| M["Master<br/>manager step"]
+    M -->|"1 partition<br/>per account"| K["Kafka<br/>report.partitions"]
+    K -->|consumer group| W["Workers (2..N)<br/>Strategy per reportType"]
+    W --> S[("H2 Oracle mode<br/>+ MinIO artifacts")]
+    M -.->|poll completion| S
+    API -.->|status / download| S
+
+    classDef app fill:#d4e8f0,stroke:#0277bd,color:#000
+    classDef infra fill:#f0e8d8,stroke:#b8860b,color:#000
+    class API,M,W app
+    class K,S infra
 ```
 
 ## Key properties
@@ -191,6 +198,18 @@ report-composer-poc/
 ├── Dockerfile  ·  docker-compose.yml  ·  Makefile
 └── specs/Report_Composer_POC_PRD.md
 ```
+
+## Diagrams
+
+Full diagrams live in [`docs/diagrams/`](docs/diagrams/README.md) — each in **Mermaid**
+(rendered inline by GitHub) and **PlantUML** (`.puml`, full UML notation):
+
+| Diagram | What it shows |
+|---------|---------------|
+| [Architecture](docs/diagrams/README.md#architecture--deployment-prd-10) | Deployment topology: API, master Job, worker Deployment + HPA, Kafka, H2, MinIO |
+| [Components](docs/diagrams/README.md#components) | Package responsibilities and the three extension interfaces (launcher, strategy, storage) |
+| [Class](docs/diagrams/README.md#class-diagram--strategy-pattern--batch-core) | Strategy pattern, launchers, batch core, idempotency entities |
+| [Sequence](docs/diagrams/README.md#job-lifecycle-sequence) | Job lifecycle: trigger → partition → Kafka → workers → report → status/download |
 
 ## Configuration
 

@@ -1,0 +1,112 @@
+@startuml class
+' Report Composer POC — key classes (Strategy pattern + batch orchestration)
+title Report Composer POC — Class Diagram
+
+skinparam backgroundColor #ffffff
+skinparam class {
+    BackgroundColor #d4e8f0
+    BorderColor #0277bd
+    BackgroundColor<<record>> #fff3e0
+    BackgroundColor<<entity>> #efe3f5
+}
+skinparam interface {
+    BackgroundColor #a6e3a1
+    BorderColor #2f9e44
+}
+
+interface ReportTypeStrategy {
+    +supports(): String
+    +description(): String
+    +generate(ctx: ReportContext, txns: List<TransactionEntity>): GeneratedReport
+}
+class AccountStatementStrategy {
+    +supports(): "ACCOUNT_STATEMENT"
+}
+class TaxSummaryStrategy {
+    +supports(): "TAX_SUMMARY"
+}
+class ReportStrategyResolver {
+    -byType: Map<String, ReportTypeStrategy>
+    +resolve(reportType): ReportTypeStrategy
+    +isRegistered(reportType): boolean
+    +catalog(): List<ReportTypeStrategy>
+}
+class ReportContext <<record>> {
+    +tenant: Tenant
+    +accountId: String
+    +businessDate: LocalDate
+    +contractParamsJson: String
+}
+class GeneratedReport <<record>> {
+    +fileName: String
+    +contentType: String
+    +content: byte[]
+}
+
+class JobService {
+    +start(tenantId, reportType, businessDate): Long
+    +restart(jobExecutionId): Long
+    +get(jobExecutionId): JobSummaryDto
+    +partitions(jobExecutionId): List<PartitionDto>
+    -validate(): tenant enabled + active contract + registered strategy
+}
+interface MasterLauncher {
+    +launch(tenantId, reportType, businessDate): Long
+    +restart(jobExecutionId): Long
+}
+class LocalMasterLauncher {
+    in-process async JobLauncher (Compose)
+}
+class K8sMasterLauncher {
+    Fabric8: create master Job from template
+}
+
+class AccountPartitioner {
+    +partition(gridSize): Map<String, ExecutionContext>
+    one stable partition name per eligible account
+}
+class ReportWorkerTasklet {
+    +execute(contribution, chunkContext)
+    skip COMPLETED / bounded retry / idempotent persist
+}
+class WorkUnitStateService {
+    +markRunning(id)  [REQUIRES_NEW]
+    +markCompleted(id)
+    +markFailed(id, error)
+}
+interface ArtifactStorage {
+    +put(objectKey, content, contentType)
+    +get(objectKey): InputStream
+}
+
+class ReportJob <<entity>> {
+    unique (tenantId, reportType, businessDate)
+    jobExecutionId, status
+}
+class ReportWorkUnit <<entity>> {
+    unique (tenantId, accountId, reportType, businessDate)
+    status, attemptCount
+}
+
+ReportTypeStrategy <|.. AccountStatementStrategy
+ReportTypeStrategy <|.. TaxSummaryStrategy
+ReportStrategyResolver o-- "many" ReportTypeStrategy : registry\n(= agreed catalog)
+ReportTypeStrategy ..> ReportContext
+ReportTypeStrategy ..> GeneratedReport
+MasterLauncher <|.. LocalMasterLauncher
+MasterLauncher <|.. K8sMasterLauncher
+JobService --> MasterLauncher
+JobService --> ReportJob
+AccountPartitioner --> ReportJob : find-or-create
+AccountPartitioner --> ReportWorkUnit : insert-if-absent
+ReportWorkerTasklet --> ReportStrategyResolver
+ReportWorkerTasklet --> WorkUnitStateService
+ReportWorkerTasklet --> ArtifactStorage
+ReportJob "1" --> "*" ReportWorkUnit
+
+note bottom of ReportStrategyResolver
+  Adding a report type = ONE new @Component
+  implementing ReportTypeStrategy (PRD §7).
+  Tenants contract it via tenant_report_contract rows.
+end note
+@enduml

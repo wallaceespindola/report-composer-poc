@@ -1,0 +1,92 @@
+@startuml components
+' Report Composer POC — component diagram (package = responsibility)
+title Report Composer POC — Components
+
+skinparam backgroundColor #ffffff
+skinparam package {
+    BackgroundColor #eef6fa
+    BorderColor #01579b
+}
+skinparam component {
+    BackgroundColor #d4e8f0
+    BorderColor #0277bd
+}
+skinparam interface {
+    BackgroundColor #a6e3a1
+    BorderColor #2f9e44
+}
+
+package "api (REST boundary)" {
+    [JobController] as jc
+    [TenantController] as tc
+    [ReportTypeController] as rtc
+    [ReportController] as rc
+}
+
+package "service" {
+    [JobService\ncontract validation + orchestration] as js
+    [DataSeeder\nidempotent mock data (api role)] as ds
+    [ReportDownloadService] as rds
+}
+
+package "launcher" {
+    interface MasterLauncher as ml
+    [LocalMasterLauncher\n(in-process, async)] as lml
+    [K8sMasterLauncher\n(Fabric8 -> master Job)] as kml
+    [MasterRunner\n(APP_ROLE=master entrypoint)] as mr
+}
+
+package "batch.master" {
+    [managerStep\n(polling aggregation)] as ms
+    [AccountPartitioner\n(1 partition per account)] as ap
+}
+
+package "batch.worker" {
+    [workerStep] as ws
+    [ReportWorkerTasklet\n(generate + persist idempotently)] as wt
+}
+
+package "strategy (agreed catalog)" {
+    interface ReportTypeStrategy as rts
+    [ReportStrategyResolver] as rsr
+    [AccountStatementStrategy] as as_
+    [TaxSummaryStrategy] as ts
+}
+
+package "repository / storage" {
+    [Spring Data JPA repositories] as repo
+    interface ArtifactStorage as ast
+    [MinioArtifactStorage] as mas
+}
+
+queue "Kafka" as kafka
+database "H2 (Oracle mode)" as h2
+database "MinIO" as minio
+cloud "Kubernetes API" as k8s
+
+jc --> js
+rc --> rds
+js --> ml
+lml .up.|> ml
+kml .up.|> ml
+kml --> k8s
+lml --> ms
+mr --> ms
+ms --> ap
+ms --> kafka : StepExecutionRequests
+kafka --> ws : consumer group
+ws --> wt
+wt --> rsr
+rsr --> rts
+as_ .up.|> rts
+ts .up.|> rts
+wt --> ast
+mas .up.|> ast
+mas --> minio
+js --> repo
+ds --> repo
+ap --> repo
+wt --> repo
+rds --> ast
+repo --> h2
+@enduml

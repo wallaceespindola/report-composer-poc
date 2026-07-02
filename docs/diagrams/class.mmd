@@ -1,0 +1,101 @@
+%% Report Composer POC — key classes (Strategy pattern + batch orchestration)
+classDiagram
+    direction LR
+
+    class ReportTypeStrategy {
+        <<interface>>
+        +supports() String
+        +description() String
+        +generate(ReportContext, List~TransactionEntity~) GeneratedReport
+    }
+    class AccountStatementStrategy {
+        supports = ACCOUNT_STATEMENT
+    }
+    class TaxSummaryStrategy {
+        supports = TAX_SUMMARY
+    }
+    class ReportStrategyResolver {
+        -Map~String,ReportTypeStrategy~ byType
+        +resolve(reportType) ReportTypeStrategy
+        +isRegistered(reportType) boolean
+        +catalog() List~ReportTypeStrategy~
+    }
+    class ReportContext {
+        <<record>>
+        +Tenant tenant
+        +String accountId
+        +LocalDate businessDate
+        +String contractParamsJson
+    }
+    class GeneratedReport {
+        <<record>>
+        +String fileName
+        +String contentType
+        +bytes content
+    }
+
+    class JobService {
+        +start(tenantId, reportType, businessDate) Long
+        +restart(jobExecutionId) Long
+        +get(jobExecutionId) JobSummaryDto
+        +partitions(jobExecutionId) List~PartitionDto~
+        -validate() contractAndCatalogChecks
+    }
+    class MasterLauncher {
+        <<interface>>
+        +launch(tenantId, reportType, businessDate) Long
+        +restart(jobExecutionId) Long
+    }
+    class LocalMasterLauncher {
+        in-process async JobLauncher
+    }
+    class K8sMasterLauncher {
+        Fabric8: create master Job from template
+    }
+
+    class AccountPartitioner {
+        +partition(gridSize) Map~String,ExecutionContext~
+        one partition per eligible account
+    }
+    class ReportWorkerTasklet {
+        +execute(contribution, chunkContext)
+        skip COMPLETED, retry, persist idempotently
+    }
+    class WorkUnitStateService {
+        +markRunning(id) REQUIRES_NEW
+        +markCompleted(id)
+        +markFailed(id, error)
+    }
+    class ArtifactStorage {
+        <<interface>>
+        +put(objectKey, content, contentType)
+        +get(objectKey) InputStream
+    }
+
+    class ReportJob {
+        <<entity>>
+        tenantId + reportType + businessDate (unique)
+        jobExecutionId, status
+    }
+    class ReportWorkUnit {
+        <<entity>>
+        idempotency key: tenant+account+type+date (unique)
+        status, attemptCount
+    }
+
+    ReportTypeStrategy <|.. AccountStatementStrategy
+    ReportTypeStrategy <|.. TaxSummaryStrategy
+    ReportStrategyResolver o-- ReportTypeStrategy : registry
+    ReportTypeStrategy ..> ReportContext
+    ReportTypeStrategy ..> GeneratedReport
+    MasterLauncher <|.. LocalMasterLauncher
+    MasterLauncher <|.. K8sMasterLauncher
+    JobService --> MasterLauncher
+    JobService --> ReportJob
+    AccountPartitioner --> ReportJob : find-or-create
+    AccountPartitioner --> ReportWorkUnit : insert-if-absent
+    ReportWorkerTasklet --> ReportStrategyResolver
+    ReportWorkerTasklet --> WorkUnitStateService
+    ReportWorkerTasklet --> ArtifactStorage
+    ReportWorkerTasklet --> ReportWorkUnit
+    ReportJob "1" --> "*" ReportWorkUnit

@@ -1,0 +1,48 @@
+@startuml architecture
+' Report Composer POC — deployment topology (PRD §10)
+title Report Composer POC — Architecture / Deployment
+
+skinparam backgroundColor #ffffff
+skinparam node {
+    BackgroundColor #d4e8f0
+    BorderColor #0277bd
+}
+skinparam database {
+    BackgroundColor #f0e8d8
+    BorderColor #b8860b
+}
+skinparam queue {
+    BackgroundColor #f0e8d8
+    BorderColor #b8860b
+}
+
+actor "User / Scheduler" as user
+node "Frontend\n(static SPA, nginx :3000)" as fe #e8f5e9
+
+frame "Kubernetes namespace: report-composer" {
+    node "API Deployment\nAPP_ROLE=api\nREST + Swagger :8080" as api
+    node "Master Job (per request)\nAPP_ROLE=master\nmanager step: discover + partition" as master
+    node "Worker Deployment\nAPP_ROLE=worker\nHPA 2..N (optional KEDA on Kafka lag)" as workers
+    queue "Kafka (KRaft)\nreport.partitions — 10 partitions\nconsumer group: report-workers" as kafka
+    database "H2 TCP server (MODE=Oracle)\napp tables + Spring Batch metadata\n(shared by master and workers)" as h2
+    database "MinIO\nbucket: reports" as minio
+}
+
+user --> fe
+fe --> api : /api proxy
+api --> master : Fabric8 creates Job\n(LAUNCHER_MODE=k8s;\nlocal mode runs manager in-process)
+master --> kafka : StepExecutionRequest\none partition per account
+kafka --> workers : consumer group\n(each partition -> exactly one worker)
+master --> h2 : create partitions,\npoll completion
+workers --> h2 : load ExecutionContext,\nupdate step + work-unit status
+workers --> minio : write report artifact\n(overwrite-by-key, idempotent)
+api --> h2 : job status / partitions
+api --> minio : stream report downloads
+
+legend right
+  |= Color |= Meaning |
+  | <#d4e8f0> | app (same image, role via APP_ROLE) |
+  | <#f0e8d8> | infrastructure |
+  | <#e8f5e9> | edge / UI |
+endlegend
+@enduml

@@ -1,0 +1,53 @@
+%% Report Composer POC — job lifecycle: trigger -> partition -> workers -> report
+sequenceDiagram
+    autonumber
+    actor User
+    participant API as API (JobController/JobService)
+    participant K8s as Kubernetes API
+    participant Master as Master (manager step)
+    participant Kafka as Kafka report.partitions
+    participant Worker as Worker (consumer group)
+    participant DB as H2 (shared job repo + app tables)
+    participant MinIO
+
+    User->>API: POST /api/v1/jobs {tenantId, reportType, businessDate}
+    activate API
+    API->>DB: validate tenant enabled + active contract<br/>+ registered strategy (FR-18)
+    alt invalid
+        API-->>User: 400/404/409 {timestamp, error}
+    else valid
+        API->>DB: upsert report_job (REQUESTED)
+        alt LAUNCHER_MODE=k8s
+            API->>K8s: create master Job (Fabric8, env = job key)
+            K8s->>Master: schedule pod (APP_ROLE=master)
+        else LAUNCHER_MODE=local
+            API->>Master: run manager step in-process (async)
+        end
+        API-->>User: 202 {jobExecutionId}
+    end
+    deactivate API
+
+    activate Master
+    Master->>DB: discover eligible accounts,<br/>insert report_work_unit per account (idempotent)
+    Master->>Kafka: StepExecutionRequest per partition<br/>(partition-{accountId})
+    loop until all partitions terminal
+        Master->>DB: poll step executions (polling aggregation)
+    end
+
+    Kafka->>Worker: request (each partition -> exactly one worker)
+    activate Worker
+    Worker->>DB: load ExecutionContext, work unit<br/>(skip if already COMPLETED)
+    Worker->>DB: markRunning (attempt+1)
+    Worker->>Worker: resolve strategy by reportType,<br/>generate report (retry w/ backoff on transient)
+    Worker->>MinIO: put artifact (overwrite-by-key)
+    Worker->>DB: upsert report_artifact, markCompleted
+    deactivate Worker
+
+    Master->>DB: all partitions done -> JobExecution + report_job COMPLETED
+    deactivate Master
+
+    User->>API: GET /api/v1/jobs/{id} / partitions
+    API-->>User: status + completed/total/failed
+    User->>API: GET /api/v1/reports/{workUnitId}
+    API->>MinIO: get(objectKey)
+    API-->>User: report file download
