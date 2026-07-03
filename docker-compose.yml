@@ -42,6 +42,9 @@ services:
   # H2 TCP server in Oracle compatibility mode; host port 9093 avoids Kafka's 9092.
   h2:
     image: oscarfonts/h2:latest
+    # image is amd64-only; pin the platform so arm64 hosts (Apple Silicon) run it
+    # under emulation without the mismatch warning — H2 is tiny, emulation is fine
+    platform: linux/amd64
     ports:
       - "9093:1521"
       - "8083:81" # H2 web console
