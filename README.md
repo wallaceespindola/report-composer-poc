@@ -147,7 +147,9 @@ through the Kubernetes API** (Fabric8, RBAC-scoped ServiceAccount); watch with
 
 ## Start & stop scripts — what actually happens
 
-Both scripts take a target: `compose` (default) or `k8s`. Windows equivalents
+Both scripts take a target: `compose` (default) or `k8s`. The `.sh` scripts run on
+**macOS and Linux** (bash, no BSD/GNU-specific utilities; the docker-context handling
+works with Docker Desktop, colima, and native Linux Docker). Windows equivalents
 (`.ps1`/`.bat`) mirror the same behavior.
 
 ### `scripts/start.sh [compose]`

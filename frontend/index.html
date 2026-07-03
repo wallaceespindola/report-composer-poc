@@ -3,222 +3,324 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Report Composer POC</title>
+  <title>Report Composer — Ops console</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="topbar">
-    <h1>Report Composer POC</h1>
-  </header>
+  <div class="app">
+    <nav class="sidebar" aria-label="Primary">
+      <div class="brand">
+        <span class="brand-name">Report Composer</span>
+        <span class="brand-tag">POC</span>
+      </div>
 
-  <main>
-    <div id="error-banner" class="banner hidden" role="alert"></div>
+      <ul class="nav-list" role="list">
+        <li>
+          <a class="nav-link" data-view="dashboard" href="#/dashboard">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-link" data-view="jobs" href="#/jobs">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2.5 7L13 4l3 15 2.5-7H21"/></svg>
+            <span>Jobs</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-link" data-view="data" href="#/data">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>
+            <span>Data</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-link" data-view="documents" href="#/documents">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/></svg>
+            <span>Documents</span>
+          </a>
+        </li>
+        <li>
+          <a class="nav-link" data-view="system" href="#/system">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.6 1z"/></svg>
+            <span>System</span>
+          </a>
+        </li>
+      </ul>
 
-    <section class="card stats-bar" id="stats-bar" aria-label="Live stats">
-      <div class="stat-tile">
-        <div class="stat-value" id="stat-workers">—</div>
-        <div class="stat-label">Active workers</div>
-        <div class="stat-sub" id="stat-workers-sub"></div>
+      <div class="sidebar-footer">
+        <span class="worker-chip">
+          <span class="pulse-dot" id="sidebar-pulse" aria-hidden="true"></span>
+          <span id="sidebar-worker-count">—</span> workers
+        </span>
       </div>
-      <div class="stat-tile">
-        <div class="stat-value" id="stat-tenants">—</div>
-        <div class="stat-label">Tenants</div>
-      </div>
-      <div class="stat-tile">
-        <div class="stat-value" id="stat-contracts">—</div>
-        <div class="stat-label">Contracts</div>
-      </div>
-      <div class="stat-tile">
-        <div class="stat-value" id="stat-accounts">—</div>
-        <div class="stat-label">Accounts</div>
-      </div>
-      <div class="stat-tile">
-        <div class="stat-value" id="stat-transactions">—</div>
-        <div class="stat-label">Transactions</div>
-      </div>
-      <div class="stat-tile">
-        <div class="stat-value" id="stat-documents">—</div>
-        <div class="stat-label">Documents</div>
-        <div class="stat-sub" id="stat-documents-sub"></div>
-      </div>
-      <div class="stat-tile">
-        <div class="stat-value" id="stat-jobs">—</div>
-        <div class="stat-label">Jobs</div>
-        <div class="stat-sub" id="stat-jobs-sub"></div>
-      </div>
-      <div class="stat-tile">
-        <div class="stat-value" id="stat-partitions">—</div>
-        <div class="stat-label">Partitions</div>
-        <div class="stat-sub" id="stat-partitions-sub"></div>
-      </div>
-    </section>
+    </nav>
 
-    <div class="grid-2col">
-      <div class="col-left">
-        <section class="card">
-          <h2>Start job</h2>
-          <form id="job-form">
-            <div class="field">
-              <label for="tenant">Tenant</label>
-              <select id="tenant" required></select>
+    <div class="workspace">
+      <div id="error-banner" class="banner hidden" role="alert"></div>
+
+      <main id="views">
+        <!-- Dashboard -->
+        <section id="view-dashboard" class="view" aria-labelledby="h-dashboard">
+          <h1 id="h-dashboard" class="view-title">Dashboard</h1>
+
+          <div class="tiles-grid" aria-label="Live stats">
+            <div class="tile">
+              <div class="tile-value-row">
+                <span class="tile-value" id="stat-workers">—</span>
+                <span class="pulse-dot" id="workers-pulse" aria-hidden="true"></span>
+              </div>
+              <div class="tile-label">Active workers</div>
+              <div class="tile-sub" id="stat-workers-sub"></div>
             </div>
-            <div class="field">
-              <label for="report-type">Report type</label>
-              <select id="report-type" required></select>
+            <div class="tile">
+              <div class="tile-value" id="stat-tenants">—</div>
+              <div class="tile-label">Tenants</div>
             </div>
-            <div class="field">
-              <label for="business-date">Business date</label>
-              <input type="date" id="business-date" value="2026-06-30" required />
+            <div class="tile">
+              <div class="tile-value" id="stat-contracts">—</div>
+              <div class="tile-label">Contracts</div>
             </div>
-            <button type="submit">Start job</button>
-            <span id="job-form-msg" class="form-msg"></span>
-          </form>
-        </section>
-
-        <section class="card">
-          <h2>Onboarding &amp; data</h2>
-          <div class="tabs" role="tablist">
-            <button type="button" class="tab-btn active" data-tab="tenant" role="tab" aria-selected="true">Add tenant</button>
-            <button type="button" class="tab-btn" data-tab="contract" role="tab" aria-selected="false">Add contract</button>
-            <button type="button" class="tab-btn" data-tab="txn" role="tab" aria-selected="false">Generate transactions</button>
+            <div class="tile">
+              <div class="tile-value" id="stat-accounts">—</div>
+              <div class="tile-label">Accounts</div>
+            </div>
+            <div class="tile">
+              <div class="tile-value" id="stat-transactions">—</div>
+              <div class="tile-label">Transactions</div>
+            </div>
+            <div class="tile">
+              <div class="tile-value" id="stat-documents">—</div>
+              <div class="tile-label">Documents</div>
+              <div class="tile-sub" id="stat-documents-sub"></div>
+            </div>
+            <div class="tile">
+              <div class="tile-value" id="stat-jobs">—</div>
+              <div class="tile-label">Jobs</div>
+              <div class="tile-sub" id="stat-jobs-sub"></div>
+            </div>
+            <div class="tile">
+              <div class="tile-value" id="stat-partitions">—</div>
+              <div class="tile-label">Partitions</div>
+              <div class="tile-sub" id="stat-partitions-sub"></div>
+            </div>
           </div>
 
-          <form id="tenant-form" class="tab-panel active" data-tab-panel="tenant">
-            <div class="field">
-              <label for="new-tenant-id">Tenant ID</label>
-              <input type="text" id="new-tenant-id" placeholder="NL" required />
+          <section class="card">
+            <div class="card-head">
+              <h2>Recent jobs</h2>
+              <a class="link-quiet" href="#/jobs">View all &rarr;</a>
             </div>
-            <div class="field">
-              <label for="new-tenant-country">Country code</label>
-              <input type="text" id="new-tenant-country" placeholder="NL" required />
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Tenant</th>
+                    <th>Type</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                  </tr>
+                </thead>
+                <tbody id="recent-jobs-tbody"></tbody>
+              </table>
             </div>
-            <div class="field">
-              <label for="new-tenant-locale">Locale</label>
-              <input type="text" id="new-tenant-locale" placeholder="nl-NL" required />
-            </div>
-            <div class="field">
-              <label for="new-tenant-currency">Currency</label>
-              <input type="text" id="new-tenant-currency" placeholder="EUR" required />
-            </div>
-            <div class="field">
-              <label for="new-tenant-seed">Seed accounts</label>
-              <input type="number" id="new-tenant-seed" min="1" value="25" />
-            </div>
-            <div class="field">
-              <label for="new-tenant-date">Business date</label>
-              <input type="date" id="new-tenant-date" />
-            </div>
-            <button type="submit">Add tenant</button>
-            <span class="form-msg" data-msg-for="tenant"></span>
-          </form>
-
-          <form id="contract-form" class="tab-panel" data-tab-panel="contract">
-            <div class="field">
-              <label for="contract-tenant">Tenant</label>
-              <select id="contract-tenant" required></select>
-            </div>
-            <div class="field">
-              <label for="contract-report-type">Report type</label>
-              <select id="contract-report-type" required></select>
-            </div>
-            <div class="field">
-              <label for="contract-effective-from">Effective from</label>
-              <input type="date" id="contract-effective-from" />
-            </div>
-            <button type="submit">Add contract</button>
-            <span class="form-msg" data-msg-for="contract"></span>
-          </form>
-
-          <form id="txn-form" class="tab-panel" data-tab-panel="txn">
-            <div class="field">
-              <label for="txn-tenant">Tenant</label>
-              <select id="txn-tenant" required></select>
-            </div>
-            <div class="field">
-              <label for="txn-date">Business date</label>
-              <input type="date" id="txn-date" required />
-            </div>
-            <div class="field">
-              <label for="txn-per-account">Per account (optional)</label>
-              <input type="number" id="txn-per-account" min="1" max="100" placeholder="random 3-8" />
-            </div>
-            <button type="submit">Generate</button>
-            <span class="form-msg" data-msg-for="txn"></span>
-          </form>
+          </section>
         </section>
-      </div>
 
-      <div class="col-right">
-        <section class="card">
-          <h2>Jobs</h2>
-          <table id="jobs-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th>ID</th>
-                <th>Tenant</th>
-                <th>Type</th>
-                <th>Date</th>
-                <th>Status</th>
-                <th>Progress</th>
-                <th>Start</th>
-                <th>End</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="jobs-tbody"></tbody>
-          </table>
+        <!-- Jobs -->
+        <section id="view-jobs" class="view" aria-labelledby="h-jobs" hidden>
+          <h1 id="h-jobs" class="view-title">Jobs</h1>
+
+          <section class="card">
+            <h2>Start job</h2>
+            <form id="job-form" class="form-row">
+              <div class="field">
+                <label for="tenant">Tenant</label>
+                <select id="tenant" required></select>
+              </div>
+              <div class="field">
+                <label for="report-type">Report type</label>
+                <select id="report-type" required></select>
+              </div>
+              <div class="field">
+                <label for="business-date">Business date</label>
+                <input type="date" id="business-date" value="2026-06-30" required />
+              </div>
+              <button type="submit" class="btn-primary">Start job</button>
+              <span id="job-form-msg" class="form-msg" role="status"></span>
+            </form>
+          </section>
+
+          <section class="card">
+            <h2>All jobs</h2>
+            <div class="table-scroll">
+              <table id="jobs-table">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>ID</th>
+                    <th>Tenant</th>
+                    <th>Type</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Progress</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="jobs-tbody"></tbody>
+              </table>
+            </div>
+          </section>
         </section>
-      </div>
+
+        <!-- Data -->
+        <section id="view-data" class="view" aria-labelledby="h-data" hidden>
+          <h1 id="h-data" class="view-title">Data</h1>
+
+          <div class="data-grid">
+            <section class="card">
+              <h2>Add tenant</h2>
+              <form id="tenant-form" class="form-stack">
+                <div class="field">
+                  <label for="new-tenant-id">Tenant ID</label>
+                  <input type="text" id="new-tenant-id" placeholder="NL" required />
+                </div>
+                <div class="field">
+                  <label for="new-tenant-country">Country code</label>
+                  <input type="text" id="new-tenant-country" placeholder="NL" required />
+                </div>
+                <div class="field">
+                  <label for="new-tenant-locale">Locale</label>
+                  <input type="text" id="new-tenant-locale" placeholder="nl-NL" required />
+                </div>
+                <div class="field">
+                  <label for="new-tenant-currency">Currency</label>
+                  <input type="text" id="new-tenant-currency" placeholder="EUR" required />
+                </div>
+                <div class="field">
+                  <label for="new-tenant-seed">Seed accounts</label>
+                  <input type="number" id="new-tenant-seed" min="1" value="25" />
+                </div>
+                <div class="field">
+                  <label for="new-tenant-date">Business date</label>
+                  <input type="date" id="new-tenant-date" />
+                </div>
+                <button type="submit" class="btn-primary">Create tenant</button>
+                <span class="form-msg" data-msg-for="tenant" role="status"></span>
+              </form>
+            </section>
+
+            <section class="card">
+              <h2>Add contract</h2>
+              <form id="contract-form" class="form-stack">
+                <div class="field">
+                  <label for="contract-tenant">Tenant</label>
+                  <select id="contract-tenant" required></select>
+                </div>
+                <div class="field">
+                  <label for="contract-report-type">Report type</label>
+                  <select id="contract-report-type" required></select>
+                </div>
+                <div class="field">
+                  <label for="contract-effective-from">Effective from</label>
+                  <input type="date" id="contract-effective-from" />
+                </div>
+                <button type="submit" class="btn-primary">Add contract</button>
+                <span class="form-msg" data-msg-for="contract" role="status"></span>
+              </form>
+            </section>
+
+            <section class="card">
+              <h2>Generate transactions</h2>
+              <form id="txn-form" class="form-stack">
+                <div class="field">
+                  <label for="txn-tenant">Tenant</label>
+                  <select id="txn-tenant" required></select>
+                </div>
+                <div class="field">
+                  <label for="txn-date">Business date</label>
+                  <input type="date" id="txn-date" required />
+                </div>
+                <div class="field">
+                  <label for="txn-per-account">Per account (optional)</label>
+                  <input type="number" id="txn-per-account" min="1" max="100" placeholder="random 3-8" />
+                </div>
+                <button type="submit" class="btn-primary">Generate transactions</button>
+                <span class="form-msg" data-msg-for="txn" role="status"></span>
+              </form>
+            </section>
+          </div>
+        </section>
+
+        <!-- Documents -->
+        <section id="view-documents" class="view" aria-labelledby="h-documents" hidden>
+          <h1 id="h-documents" class="view-title">Documents</h1>
+
+          <section class="card">
+            <div class="doc-filters">
+              <div class="field">
+                <label for="doc-filter-tenant">Tenant</label>
+                <select id="doc-filter-tenant"><option value="">All</option></select>
+              </div>
+              <div class="field">
+                <label for="doc-filter-type">Report type</label>
+                <select id="doc-filter-type"><option value="">All</option></select>
+              </div>
+              <div class="field">
+                <label for="doc-filter-date">Business date</label>
+                <input type="date" id="doc-filter-date" />
+              </div>
+              <button type="button" id="doc-refresh-btn" class="btn-outline">Refresh</button>
+              <span class="form-msg" data-msg-for="docs" role="status"></span>
+            </div>
+            <div class="table-scroll">
+              <table id="docs-table">
+                <thead>
+                  <tr>
+                    <th>File</th>
+                    <th>Tenant</th>
+                    <th>Account</th>
+                    <th>Type</th>
+                    <th>Date</th>
+                    <th>Size</th>
+                    <th>Created</th>
+                    <th>Checksum</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="docs-tbody"></tbody>
+              </table>
+            </div>
+            <p class="empty-state" id="docs-empty" hidden>No documents yet — run a job from the Jobs page.</p>
+          </section>
+        </section>
+
+        <!-- System -->
+        <section id="view-system" class="view" aria-labelledby="h-system" hidden>
+          <h1 id="h-system" class="view-title">System</h1>
+
+          <section class="card">
+            <h2>This service</h2>
+            <div class="links-grid" id="system-links-service"></div>
+          </section>
+
+          <section class="card">
+            <h2>Infrastructure (compose ports)</h2>
+            <div class="links-grid" id="system-links-infra"></div>
+          </section>
+        </section>
+      </main>
     </div>
-
-    <section class="card">
-      <h2>Generated documents</h2>
-      <div class="doc-filters">
-        <div class="field">
-          <label for="doc-filter-tenant">Tenant</label>
-          <select id="doc-filter-tenant"><option value="">All</option></select>
-        </div>
-        <div class="field">
-          <label for="doc-filter-type">Report type</label>
-          <select id="doc-filter-type"><option value="">All</option></select>
-        </div>
-        <div class="field">
-          <label for="doc-filter-date">Business date</label>
-          <input type="date" id="doc-filter-date" />
-        </div>
-        <button type="button" id="doc-refresh-btn">Refresh</button>
-        <span class="form-msg" data-msg-for="docs"></span>
-      </div>
-      <table id="docs-table">
-        <thead>
-          <tr>
-            <th>File</th>
-            <th>Tenant</th>
-            <th>Account</th>
-            <th>Type</th>
-            <th>Date</th>
-            <th>Size</th>
-            <th>Created</th>
-            <th>Checksum</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="docs-tbody"></tbody>
-      </table>
-    </section>
-
-    <section class="card">
-      <h2>System links</h2>
-      <ul class="links-list" id="system-links"></ul>
-    </section>
-  </main>
+  </div>
 
   <div id="doc-view-modal" class="modal-overlay hidden">
-    <div class="modal-box">
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="doc-view-title">
       <div class="modal-header">
         <span id="doc-view-title"></span>
-        <button type="button" id="doc-view-close" aria-label="Close">&times;</button>
+        <button type="button" id="doc-view-close" aria-label="Close preview">&times;</button>
       </div>
       <pre id="doc-view-content"></pre>
     </div>

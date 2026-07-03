@@ -218,10 +218,24 @@ async function loadPartitions(jobExecutionId) {
   }
 }
 
+function recentJobRowHtml(job) {
+  return `
+    <tr>
+      <td>${escapeHtml(job.jobExecutionId)}</td>
+      <td>${escapeHtml(job.tenantId)}</td>
+      <td>${escapeHtml(job.reportType)}</td>
+      <td>${escapeHtml(job.businessDate)}</td>
+      <td><span class="badge ${statusClass(job.status)}">${escapeHtml(job.status)}</span></td>
+      <td>${fmtTime(job.startTime)}</td>
+    </tr>
+  `;
+}
+
 async function refreshJobs() {
   try {
     const res = await api('/jobs');
     el.jobsTbody.innerHTML = res.jobs.map(jobRowHtml).join('');
+    document.getElementById('recent-jobs-tbody').innerHTML = res.jobs.slice(0, 5).map(recentJobRowHtml).join('');
     clearError();
     if (state.expandedJobId) {
       loadPartitions(state.expandedJobId);
@@ -268,9 +282,13 @@ function statusBreakdown(byStatus) {
 async function refreshStats() {
   try {
     const stats = await api('/stats');
-    document.getElementById('stat-workers').textContent = stats.activeWorkerPods > 0 ? stats.activeWorkerPods : '—';
+    const workersActive = stats.activeWorkerPods > 0;
+    document.getElementById('stat-workers').textContent = workersActive ? stats.activeWorkerPods : '—';
     document.getElementById('stat-workers-sub').textContent =
-      stats.activeWorkerPods > 0 ? `${stats.workerConsumerThreads} threads` : '';
+      workersActive ? `${stats.workerConsumerThreads} threads` : '';
+    document.getElementById('workers-pulse').classList.toggle('active', workersActive);
+    document.getElementById('sidebar-pulse').classList.toggle('active', workersActive);
+    document.getElementById('sidebar-worker-count').textContent = workersActive ? stats.activeWorkerPods : '0';
     document.getElementById('stat-tenants').textContent = stats.tenants;
     document.getElementById('stat-contracts').textContent = stats.contracts;
     document.getElementById('stat-accounts').textContent = stats.accounts;
@@ -290,20 +308,7 @@ async function refreshStats() {
   }
 }
 
-// ---- Admin panel (tabs + forms) ----
-
-document.querySelectorAll('.tab-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach((b) => {
-      b.classList.remove('active');
-      b.setAttribute('aria-selected', 'false');
-    });
-    document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
-    btn.classList.add('active');
-    btn.setAttribute('aria-selected', 'true');
-    document.querySelector(`.tab-panel[data-tab-panel="${btn.dataset.tab}"]`).classList.add('active');
-  });
-});
+// ---- Admin panel (forms) ----
 
 function setFormMsg(name, message, ok) {
   const span = document.querySelector(`[data-msg-for="${name}"]`);
@@ -409,6 +414,7 @@ async function refreshDocuments() {
   try {
     const res = await api(`/reports${qs ? `?${qs}` : ''}`);
     document.getElementById('docs-tbody').innerHTML = res.artifacts.map(docsTableRowHtml).join('');
+    document.getElementById('docs-empty').hidden = res.artifacts.length > 0;
     setFormMsg('docs', '', true);
   } catch (err) {
     setFormMsg('docs', err.message, false);
@@ -462,43 +468,74 @@ document.getElementById('docs-tbody').addEventListener('click', async (e) => {
 
 // ---- System links ----
 
+function linkCardHtml({ label, href, desc, hint }) {
+  return `
+    <div class="link-card">
+      <a class="link-card-name" href="${escapeHtml(href)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>
+      <div class="link-card-desc">${escapeHtml(desc)}</div>
+      <span class="link-card-url">${escapeHtml(href)}</span>
+      ${hint ? `<div class="link-card-hint">${escapeHtml(hint)}</div>` : ''}
+    </div>
+  `;
+}
+
 function renderSystemLinks() {
   const proxied = location.port === '3000';
   const apiOrigin = proxied ? 'http://localhost:8080' : '';
-  const sameOriginLinks = [
-    ['Swagger UI', `${apiOrigin}/swagger-ui.html`],
-    ['OpenAPI JSON', `${apiOrigin}/v3/api-docs`],
-    ['Health', `${apiOrigin}/health`],
-    ['Actuator', `${apiOrigin}/actuator`],
-    ['Prometheus metrics', `${apiOrigin}/actuator/prometheus`],
+  const serviceLinks = [
+    { label: 'Swagger UI', href: `${apiOrigin}/swagger-ui.html`, desc: 'Interactive API explorer' },
+    { label: 'OpenAPI JSON', href: `${apiOrigin}/v3/api-docs`, desc: 'Raw OpenAPI 3 spec' },
+    { label: 'Health', href: `${apiOrigin}/health`, desc: 'Liveness / readiness probe' },
+    { label: 'Actuator', href: `${apiOrigin}/actuator`, desc: 'Spring Boot actuator root' },
+    { label: 'Prometheus metrics', href: `${apiOrigin}/actuator/prometheus`, desc: 'Scrape endpoint for metrics' },
   ];
-  const hostLinks = [
-    ['API direct', 'http://localhost:8080', ''],
-    ['Frontend (nginx)', 'http://localhost:3000', ''],
-    ['Kafka UI', 'http://localhost:8082', ''],
-    ['MinIO console', 'http://localhost:9001', 'minioadmin / minioadmin'],
-    ['H2 web console', 'http://localhost:8083', 'JDBC: jdbc:h2:tcp://h2:1521//opt/h2-data/report;MODE=Oracle · user sa · empty password'],
+  const infraLinks = [
+    { label: 'API', href: 'http://localhost:8080', desc: 'Backend REST API (direct, port 8080)' },
+    { label: 'Frontend', href: 'http://localhost:3000', desc: 'This console, served by nginx (port 3000)' },
+    { label: 'Kafka UI', href: 'http://localhost:8082', desc: 'Browse topics, partitions and lag (port 8082)' },
+    { label: 'MinIO S3', href: 'http://localhost:9000', desc: 'S3-compatible object storage endpoint (port 9000)' },
+    { label: 'MinIO console', href: 'http://localhost:9001', desc: 'Object storage admin UI (port 9001)', hint: 'minioadmin / minioadmin' },
+    { label: 'H2 console', href: 'http://localhost:8083', desc: 'Database web console (port 8083)', hint: 'jdbc:h2:tcp://h2:1521//opt/h2-data/report;MODE=Oracle · user sa · empty password' },
   ];
 
-  const sameOriginHtml = sameOriginLinks
-    .map(([label, href]) => `<li><a href="${escapeHtml(href)}" target="_blank" rel="noopener">${escapeHtml(label)}</a></li>`)
-    .join('');
-  const hostHtml = hostLinks
-    .map(([label, href, hint]) => `
-      <li>
-        <a href="${escapeHtml(href)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>
-        <span class="muted"> (compose default ports)</span>
-        ${hint ? `<div class="link-hint">${escapeHtml(hint)}</div>` : ''}
-      </li>
-    `)
-    .join('');
-
-  document.getElementById('system-links').innerHTML = sameOriginHtml + hostHtml;
+  document.getElementById('system-links-service').innerHTML = serviceLinks.map(linkCardHtml).join('');
+  document.getElementById('system-links-infra').innerHTML = infraLinks.map(linkCardHtml).join('');
 }
+
+// ---- Routing ----
+
+const VIEWS = ['dashboard', 'jobs', 'data', 'documents', 'system'];
+
+function currentView() {
+  const hash = location.hash.replace(/^#\/?/, '');
+  return VIEWS.includes(hash) ? hash : 'dashboard';
+}
+
+function renderRoute() {
+  const view = currentView();
+  VIEWS.forEach((v) => {
+    document.getElementById(`view-${v}`).hidden = v !== view;
+  });
+  document.querySelectorAll('.nav-link').forEach((link) => {
+    const active = link.dataset.view === view;
+    link.classList.toggle('active', active);
+    if (active) {
+      link.setAttribute('aria-current', 'page');
+    } else {
+      link.removeAttribute('aria-current');
+    }
+  });
+}
+
+window.addEventListener('hashchange', renderRoute);
 
 // ---- Init ----
 
 async function init() {
+  if (!location.hash) {
+    location.hash = '#/dashboard';
+  }
+  renderRoute();
   try {
     await loadTenantsAndReportTypes();
     clearError();
@@ -513,6 +550,10 @@ async function init() {
   setInterval(() => {
     refreshStats();
     refreshDocuments();
+    // retry the catalog until the API is reachable (e.g. page opened while backend boots)
+    if (state.tenants.length === 0) {
+      loadTenantsAndReportTypes().then(clearError).catch(() => {});
+    }
   }, STATS_POLL_MS);
 }
 
