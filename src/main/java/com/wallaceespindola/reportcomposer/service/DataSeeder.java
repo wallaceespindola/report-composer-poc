@@ -2,12 +2,8 @@ package com.wallaceespindola.reportcomposer.service;
 
 import com.wallaceespindola.reportcomposer.config.AppProperties;
 import com.wallaceespindola.reportcomposer.domain.Account;
-import com.wallaceespindola.reportcomposer.domain.TransactionEntity;
 import com.wallaceespindola.reportcomposer.repository.AccountRepository;
 import com.wallaceespindola.reportcomposer.repository.TenantRepository;
-import com.wallaceespindola.reportcomposer.repository.TransactionRepository;
-import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import lombok.RequiredArgsConstructor;
@@ -31,13 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class DataSeeder implements ApplicationRunner {
 
-    private static final String[] TXN_TYPES = {"CREDIT", "DEBIT", "FEE", "INTEREST"};
-    private static final String[] FIRST_NAMES = {"Ana", "Bram", "Chloe", "Diego", "Emma", "Felix", "Greta", "Hugo"};
-    private static final String[] LAST_NAMES = {"Peeters", "Dubois", "Garcia", "Janssens", "Moreau", "Lopez"};
-
     private final AccountRepository accountRepository;
-    private final TransactionRepository transactionRepository;
     private final TenantRepository tenantRepository;
+    private final MockDataService mockDataService;
     private final AppProperties props;
 
     @Override
@@ -48,43 +40,16 @@ public class DataSeeder implements ApplicationRunner {
             return;
         }
         Random random = new Random(42); // deterministic demo data
-        List<Account> accounts = new ArrayList<>();
-        List<TransactionEntity> transactions = new ArrayList<>();
-
+        int[] totals = {0, 0};
         tenantRepository.findByEnabledTrue().forEach(tenant -> {
-            for (int i = 1; i <= props.seed().accountsPerTenant(); i++) {
-                String accountId = "%s-ACC-%04d".formatted(tenant.getTenantId(), i);
-                accounts.add(Account.builder()
-                        .accountId(accountId)
-                        .tenantId(tenant.getTenantId())
-                        .customerName(FIRST_NAMES[random.nextInt(FIRST_NAMES.length)] + " "
-                                + LAST_NAMES[random.nextInt(LAST_NAMES.length)])
-                        .eligible(true)
-                        .build());
-
-                int txnCount = 3 + random.nextInt(6);
-                for (int t = 0; t < txnCount; t++) {
-                    String type = TXN_TYPES[random.nextInt(TXN_TYPES.length)];
-                    BigDecimal amount = BigDecimal.valueOf(random.nextInt(500_000), 2);
-                    if (type.equals("DEBIT") || type.equals("FEE")) {
-                        amount = amount.negate();
-                    }
-                    transactions.add(TransactionEntity.builder()
-                            .tenantId(tenant.getTenantId())
-                            .accountId(accountId)
-                            .businessDate(props.seed().businessDate())
-                            .amount(amount)
-                            .currency(tenant.getCurrency())
-                            .txnType(type)
-                            .description(type + " " + (t + 1))
-                            .build());
-                }
-            }
+            List<Account> accounts =
+                    mockDataService.createAccounts(tenant, props.seed().accountsPerTenant(), random);
+            int transactions = mockDataService.generateTransactions(
+                    tenant, accounts, props.seed().businessDate(), null, random);
+            totals[0] += accounts.size();
+            totals[1] += transactions;
         });
-
-        accountRepository.saveAll(accounts);
-        transactionRepository.saveAll(transactions);
         log.info("Seeded {} accounts and {} transactions for business date {}",
-                accounts.size(), transactions.size(), props.seed().businessDate());
+                totals[0], totals[1], props.seed().businessDate());
     }
 }

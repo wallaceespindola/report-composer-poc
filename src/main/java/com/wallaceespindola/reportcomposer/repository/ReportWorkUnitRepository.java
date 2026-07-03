@@ -17,4 +17,6 @@ public interface ReportWorkUnitRepository extends JpaRepository<ReportWorkUnit, 
     long countByReportJobId(Long reportJobId);
 
     long countByReportJobIdAndStatus(Long reportJobId, WorkUnitStatus status);
+
+    long countByStatus(WorkUnitStatus status);
 }

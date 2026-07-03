@@ -1,20 +1,19 @@
 package com.wallaceespindola.reportcomposer.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wallaceespindola.reportcomposer.TestFixtures;
-import com.wallaceespindola.reportcomposer.domain.Account;
-import com.wallaceespindola.reportcomposer.domain.TransactionEntity;
 import com.wallaceespindola.reportcomposer.repository.AccountRepository;
 import com.wallaceespindola.reportcomposer.repository.TenantRepository;
-import com.wallaceespindola.reportcomposer.repository.TransactionRepository;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -22,38 +21,35 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class DataSeederTest {
 
     @Mock private AccountRepository accountRepository;
-    @Mock private TransactionRepository transactionRepository;
     @Mock private TenantRepository tenantRepository;
+    @Mock private MockDataService mockDataService;
 
     @Test
     void skipsWhenAccountsExist() {
         when(accountRepository.count()).thenReturn(10L);
-        new DataSeeder(accountRepository, transactionRepository, tenantRepository,
+        new DataSeeder(accountRepository, tenantRepository, mockDataService,
                 TestFixtures.appProperties("api", "local"))
                 .run(null);
-        verify(accountRepository, never()).saveAll(org.mockito.ArgumentMatchers.anyList());
+        verify(mockDataService, never()).createAccounts(any(), anyInt(), any());
     }
 
     @Test
-    void seedsConfiguredAccountsPerTenantWithTransactionsOnSeedDate() {
+    void seedsAccountsAndTransactionsPerEnabledTenant() {
         when(accountRepository.count()).thenReturn(0L);
-        when(tenantRepository.findByEnabledTrue()).thenReturn(List.of(TestFixtures.tenantBE()));
+        var tenant = TestFixtures.tenantBE();
+        when(tenantRepository.findByEnabledTrue()).thenReturn(List.of(tenant));
+        var accounts = List.of(TestFixtures.account("BE", "BE-ACC-0001"));
+        when(mockDataService.createAccounts(eq(tenant), eq(5), any())).thenReturn(accounts); // 5 per TestFixtures
+        when(mockDataService.generateTransactions(
+                        eq(tenant), eq(accounts), eq(TestFixtures.BUSINESS_DATE), eq(null), any()))
+                .thenReturn(20);
 
-        new DataSeeder(accountRepository, transactionRepository, tenantRepository,
-                TestFixtures.appProperties("api", "local")) // 5 accounts per tenant
+        new DataSeeder(accountRepository, tenantRepository, mockDataService,
+                TestFixtures.appProperties("api", "local"))
                 .run(null);
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<Account>> accounts = ArgumentCaptor.forClass(List.class);
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<TransactionEntity>> txns = ArgumentCaptor.forClass(List.class);
-        verify(accountRepository).saveAll(accounts.capture());
-        verify(transactionRepository).saveAll(txns.capture());
-
-        assertThat(accounts.getValue()).hasSize(5);
-        assertThat(accounts.getValue()).allMatch(a -> a.getTenantId().equals("BE") && a.isEligible());
-        assertThat(accounts.getValue().get(0).getAccountId()).isEqualTo("BE-ACC-0001");
-        assertThat(txns.getValue()).isNotEmpty();
-        assertThat(txns.getValue()).allMatch(t -> t.getBusinessDate().equals(TestFixtures.BUSINESS_DATE));
+        verify(mockDataService).createAccounts(eq(tenant), eq(5), any());
+        verify(mockDataService).generateTransactions(
+                eq(tenant), eq(accounts), eq(TestFixtures.BUSINESS_DATE), eq(null), any());
     }
 }

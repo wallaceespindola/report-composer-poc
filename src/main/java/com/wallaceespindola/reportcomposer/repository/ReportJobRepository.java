@@ -11,4 +11,6 @@ public interface ReportJobRepository extends JpaRepository<ReportJob, Long> {
             String tenantId, String reportType, LocalDate businessDate);
 
     Optional<ReportJob> findByJobExecutionId(Long jobExecutionId);
+
+    long countByStatus(com.wallaceespindola.reportcomposer.domain.ReportJobStatus status);
 }

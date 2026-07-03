@@ -14,47 +14,215 @@
   <main>
     <div id="error-banner" class="banner hidden" role="alert"></div>
 
-    <section class="card">
-      <h2>Start job</h2>
-      <form id="job-form">
-        <div class="field">
-          <label for="tenant">Tenant</label>
-          <select id="tenant" required></select>
-        </div>
-        <div class="field">
-          <label for="report-type">Report type</label>
-          <select id="report-type" required></select>
-        </div>
-        <div class="field">
-          <label for="business-date">Business date</label>
-          <input type="date" id="business-date" value="2026-06-30" required />
-        </div>
-        <button type="submit">Start job</button>
-        <span id="job-form-msg" class="form-msg"></span>
-      </form>
+    <section class="card stats-bar" id="stats-bar" aria-label="Live stats">
+      <div class="stat-tile">
+        <div class="stat-value" id="stat-workers">—</div>
+        <div class="stat-label">Active workers</div>
+        <div class="stat-sub" id="stat-workers-sub"></div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-value" id="stat-tenants">—</div>
+        <div class="stat-label">Tenants</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-value" id="stat-contracts">—</div>
+        <div class="stat-label">Contracts</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-value" id="stat-accounts">—</div>
+        <div class="stat-label">Accounts</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-value" id="stat-transactions">—</div>
+        <div class="stat-label">Transactions</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-value" id="stat-documents">—</div>
+        <div class="stat-label">Documents</div>
+        <div class="stat-sub" id="stat-documents-sub"></div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-value" id="stat-jobs">—</div>
+        <div class="stat-label">Jobs</div>
+        <div class="stat-sub" id="stat-jobs-sub"></div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-value" id="stat-partitions">—</div>
+        <div class="stat-label">Partitions</div>
+        <div class="stat-sub" id="stat-partitions-sub"></div>
+      </div>
     </section>
 
+    <div class="grid-2col">
+      <div class="col-left">
+        <section class="card">
+          <h2>Start job</h2>
+          <form id="job-form">
+            <div class="field">
+              <label for="tenant">Tenant</label>
+              <select id="tenant" required></select>
+            </div>
+            <div class="field">
+              <label for="report-type">Report type</label>
+              <select id="report-type" required></select>
+            </div>
+            <div class="field">
+              <label for="business-date">Business date</label>
+              <input type="date" id="business-date" value="2026-06-30" required />
+            </div>
+            <button type="submit">Start job</button>
+            <span id="job-form-msg" class="form-msg"></span>
+          </form>
+        </section>
+
+        <section class="card">
+          <h2>Onboarding &amp; data</h2>
+          <div class="tabs" role="tablist">
+            <button type="button" class="tab-btn active" data-tab="tenant" role="tab" aria-selected="true">Add tenant</button>
+            <button type="button" class="tab-btn" data-tab="contract" role="tab" aria-selected="false">Add contract</button>
+            <button type="button" class="tab-btn" data-tab="txn" role="tab" aria-selected="false">Generate transactions</button>
+          </div>
+
+          <form id="tenant-form" class="tab-panel active" data-tab-panel="tenant">
+            <div class="field">
+              <label for="new-tenant-id">Tenant ID</label>
+              <input type="text" id="new-tenant-id" placeholder="NL" required />
+            </div>
+            <div class="field">
+              <label for="new-tenant-country">Country code</label>
+              <input type="text" id="new-tenant-country" placeholder="NL" required />
+            </div>
+            <div class="field">
+              <label for="new-tenant-locale">Locale</label>
+              <input type="text" id="new-tenant-locale" placeholder="nl-NL" required />
+            </div>
+            <div class="field">
+              <label for="new-tenant-currency">Currency</label>
+              <input type="text" id="new-tenant-currency" placeholder="EUR" required />
+            </div>
+            <div class="field">
+              <label for="new-tenant-seed">Seed accounts</label>
+              <input type="number" id="new-tenant-seed" min="1" value="25" />
+            </div>
+            <div class="field">
+              <label for="new-tenant-date">Business date</label>
+              <input type="date" id="new-tenant-date" />
+            </div>
+            <button type="submit">Add tenant</button>
+            <span class="form-msg" data-msg-for="tenant"></span>
+          </form>
+
+          <form id="contract-form" class="tab-panel" data-tab-panel="contract">
+            <div class="field">
+              <label for="contract-tenant">Tenant</label>
+              <select id="contract-tenant" required></select>
+            </div>
+            <div class="field">
+              <label for="contract-report-type">Report type</label>
+              <select id="contract-report-type" required></select>
+            </div>
+            <div class="field">
+              <label for="contract-effective-from">Effective from</label>
+              <input type="date" id="contract-effective-from" />
+            </div>
+            <button type="submit">Add contract</button>
+            <span class="form-msg" data-msg-for="contract"></span>
+          </form>
+
+          <form id="txn-form" class="tab-panel" data-tab-panel="txn">
+            <div class="field">
+              <label for="txn-tenant">Tenant</label>
+              <select id="txn-tenant" required></select>
+            </div>
+            <div class="field">
+              <label for="txn-date">Business date</label>
+              <input type="date" id="txn-date" required />
+            </div>
+            <div class="field">
+              <label for="txn-per-account">Per account (optional)</label>
+              <input type="number" id="txn-per-account" min="1" max="100" placeholder="random 3-8" />
+            </div>
+            <button type="submit">Generate</button>
+            <span class="form-msg" data-msg-for="txn"></span>
+          </form>
+        </section>
+      </div>
+
+      <div class="col-right">
+        <section class="card">
+          <h2>Jobs</h2>
+          <table id="jobs-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>ID</th>
+                <th>Tenant</th>
+                <th>Type</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Progress</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="jobs-tbody"></tbody>
+          </table>
+        </section>
+      </div>
+    </div>
+
     <section class="card">
-      <h2>Jobs</h2>
-      <table id="jobs-table">
+      <h2>Generated documents</h2>
+      <div class="doc-filters">
+        <div class="field">
+          <label for="doc-filter-tenant">Tenant</label>
+          <select id="doc-filter-tenant"><option value="">All</option></select>
+        </div>
+        <div class="field">
+          <label for="doc-filter-type">Report type</label>
+          <select id="doc-filter-type"><option value="">All</option></select>
+        </div>
+        <div class="field">
+          <label for="doc-filter-date">Business date</label>
+          <input type="date" id="doc-filter-date" />
+        </div>
+        <button type="button" id="doc-refresh-btn">Refresh</button>
+        <span class="form-msg" data-msg-for="docs"></span>
+      </div>
+      <table id="docs-table">
         <thead>
           <tr>
-            <th></th>
-            <th>ID</th>
+            <th>File</th>
             <th>Tenant</th>
+            <th>Account</th>
             <th>Type</th>
             <th>Date</th>
-            <th>Status</th>
-            <th>Progress</th>
-            <th>Start</th>
-            <th>End</th>
+            <th>Size</th>
+            <th>Created</th>
+            <th>Checksum</th>
             <th>Actions</th>
           </tr>
         </thead>
-        <tbody id="jobs-tbody"></tbody>
+        <tbody id="docs-tbody"></tbody>
       </table>
     </section>
+
+    <section class="card">
+      <h2>System links</h2>
+      <ul class="links-list" id="system-links"></ul>
+    </section>
   </main>
+
+  <div id="doc-view-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span id="doc-view-title"></span>
+        <button type="button" id="doc-view-close" aria-label="Close">&times;</button>
+      </div>
+      <pre id="doc-view-content"></pre>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

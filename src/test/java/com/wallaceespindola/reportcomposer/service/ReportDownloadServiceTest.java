@@ -70,4 +70,40 @@ class ReportDownloadServiceTest {
         when(workUnitRepository.findById(99L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.download(99L)).isInstanceOf(NotFoundException.class);
     }
+
+    @Test
+    void listJoinsWorkUnitsAndFilters() {
+        ReportArtifact beArtifact = ReportArtifact.builder()
+                .id(1L).workUnitId(11L)
+                .objectKey("BE/ACCOUNT_STATEMENT/2026-06-30/be.txt")
+                .contentType("text/plain").sizeBytes(10).checksum("c1")
+                .createdAt(java.time.Instant.parse("2026-07-02T10:00:00Z"))
+                .build();
+        ReportArtifact frArtifact = ReportArtifact.builder()
+                .id(2L).workUnitId(12L)
+                .objectKey("FR/TAX_SUMMARY/2026-06-30/fr.txt")
+                .contentType("text/plain").sizeBytes(20).checksum("c2")
+                .createdAt(java.time.Instant.parse("2026-07-02T11:00:00Z"))
+                .build();
+        when(artifactRepository.findAll()).thenReturn(java.util.List.of(beArtifact, frArtifact));
+        ReportWorkUnit beUnit = unit(WorkUnitStatus.COMPLETED);
+        beUnit.setId(11L);
+        ReportWorkUnit frUnit = unit(WorkUnitStatus.COMPLETED);
+        frUnit.setId(12L);
+        frUnit.setTenantId("FR");
+        frUnit.setReportType("TAX_SUMMARY");
+        when(workUnitRepository.findById(11L)).thenReturn(Optional.of(beUnit));
+        when(workUnitRepository.findById(12L)).thenReturn(Optional.of(frUnit));
+
+        var all = service.list(null, null, null);
+        assertThat(all).hasSize(2);
+        assertThat(all.get(0).fileName()).isEqualTo("fr.txt"); // newest first
+
+        var onlyBe = service.list("BE", null, null);
+        assertThat(onlyBe).hasSize(1);
+        assertThat(onlyBe.get(0).reportType()).isEqualTo("ACCOUNT_STATEMENT");
+
+        assertThat(service.list(null, "TAX_SUMMARY", null)).hasSize(1);
+        assertThat(service.list(null, null, TestFixtures.BUSINESS_DATE.plusDays(1))).isEmpty();
+    }
 }

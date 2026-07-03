@@ -49,6 +49,9 @@ Base package: `com.wallaceespindola.reportcomposer`
 - `service/JobService` — boundary validation (tenant enabled, active
   `tenant_report_contract`, registered strategy) + launch/restart; `DataSeeder` seeds
   accounts/transactions only in the api role, only when the account table is empty.
+- `service/AdminService` + `MockDataService` — POC admin API: onboard tenants/contracts,
+  generate random transactions (POST /api/v1/tenants[...]); `StatsService` — counts +
+  live worker-pod count read from the Kafka consumer group (distinct member hosts).
 - `config/` — `AppProperties` (all env config, PRD §13), Kafka topic provisioning
   (`NewTopic` beans — the app owns topic creation), launchers, MinIO client.
 

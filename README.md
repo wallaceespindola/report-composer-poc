@@ -108,10 +108,19 @@ curl http://localhost:8080/api/v1/jobs/1/partitions
 |------------------------------|----------------------------|
 | http://localhost:3000        | Frontend (also served at :8080/) |
 | http://localhost:8080        | REST API                   |
-| http://localhost:8080/swagger-ui.html | OpenAPI docs      |
-| http://localhost:8082        | Kafka UI                   |
+| http://localhost:8080/swagger-ui.html | Swagger UI (interactive OpenAPI docs) |
+| http://localhost:8080/v3/api-docs | OpenAPI spec (JSON)   |
+| http://localhost:8080/health | Health (simple UP + timestamp) |
+| http://localhost:8080/actuator | Actuator index (health details, info, metrics) |
+| http://localhost:8080/actuator/prometheus | Prometheus metrics scrape |
+| http://localhost:8080/api/v1/stats | System stats (counts, job/partition status, active worker pods) |
+| http://localhost:8082        | Kafka UI (topics, consumer group lag) |
+| http://localhost:9000        | MinIO S3 endpoint          |
 | http://localhost:9001        | MinIO console (minioadmin/minioadmin) |
-| localhost:9093               | H2 TCP (Oracle mode)       |
+| http://localhost:8083        | H2 web console — JDBC URL `jdbc:h2:tcp://h2:1521//opt/h2-data/report;MODE=Oracle`, user `sa`, empty password |
+| localhost:9093               | H2 TCP port (Oracle mode, for external SQL clients) |
+
+All of these are also linked from the frontend's **System links** card.
 
 Scale workers live: `docker compose up -d --scale worker=5`.
 
@@ -240,9 +249,14 @@ type** = one new `ReportTypeStrategy` `@Component`; tenants contract it with a r
 | GET    | `/api/v1/jobs/{id}`            | Job status + aggregate partition progress |
 | GET    | `/api/v1/jobs/{id}/partitions` | Per-account (`report_work_unit`) status  |
 | POST   | `/api/v1/jobs/{id}/restart`    | Restart a failed job (completed partitions skipped) |
-| GET    | `/api/v1/reports/{workUnitId}` | Download a generated report from MinIO   |
+| GET    | `/api/v1/reports`              | List generated documents (filter by tenant/type/date) |
+| GET    | `/api/v1/reports/{workUnitId}` | Download a report from MinIO (`?inline=true` to preview) |
 | GET    | `/api/v1/tenants`              | Tenants + their contracted report types  |
+| POST   | `/api/v1/tenants`              | Onboard a tenant (optionally seed mock accounts + transactions) |
+| POST   | `/api/v1/tenants/{id}/contracts` | Contract the tenant for a catalog report type |
+| POST   | `/api/v1/tenants/{id}/transactions` | Generate random mock transactions for its accounts |
 | GET    | `/api/v1/report-types`         | The agreed catalog (registered strategies) |
+| GET    | `/api/v1/stats`                | Entity counts, job/partition status, artifact totals, **live worker pods** (Kafka consumer group) |
 | GET    | `/health`, `/actuator/*`       | Health, metrics, Prometheus scrape       |
 
 All responses carry a `timestamp`. Validation rejects unknown/disabled tenants,
