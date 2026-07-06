@@ -81,7 +81,11 @@ function populateReportTypesFor(tenantId) {
 
 function tenantOptionsHtml(tenants) {
   return tenants
-    .map((t) => `<option value="${escapeHtml(t.tenantId)}">${escapeHtml(t.countryCode)} — ${escapeHtml(t.tenantId)}</option>`)
+    .map((t) => {
+      // tenantId is the country code in the seeded data; only show both when they differ
+      const label = t.countryCode === t.tenantId ? t.countryCode : `${t.countryCode} — ${t.tenantId}`;
+      return `<option value="${escapeHtml(t.tenantId)}">${escapeHtml(label)}</option>`;
+    })
     .join('');
 }
 
