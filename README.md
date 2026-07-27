@@ -275,11 +275,12 @@ report-composer-poc/
 │   ├── strategy/     # ReportTypeStrategy + resolver + 2 shipped strategies
 │   ├── domain/       # JPA entities (tenant, contract, account, transaction, job, work unit, artifact)
 │   ├── launcher/     # local (in-process) + k8s (Fabric8) master launchers, master runner
+│   ├── repository/   # Spring Data JPA repositories
 │   ├── service/      # job orchestration/validation, seeder, downloads
 │   ├── storage/      # MinIO artifact storage
 │   └── config/       # properties, Kafka topics/serde, MinIO, web, batch launchers
 ├── src/main/resources/db/migration/   # Flyway: batch schema, app schema, seed tenants
-├── src/test/java/    # 71 tests: unit, batch slice, @WebMvcTest, H2-Oracle persistence
+├── src/test/java/    # 97 tests: unit, batch slice, @WebMvcTest, H2-Oracle persistence
 ├── frontend/         # static UI (also copied into the jar and served at :8080)
 ├── k8s/              # namespace, RBAC, H2, Kafka, MinIO, API, workers, HPA, KEDA, Ingress
 ├── scripts/          # start/stop .sh/.ps1/.bat — compose (default) + k8s targets
