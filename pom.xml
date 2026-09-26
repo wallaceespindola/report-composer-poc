@@ -27,7 +27,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <minio.version>8.5.17</minio.version>
+        <minio.version>9.0.3</minio.version>
         <fabric8.version>6.13.4</fabric8.version>
         <springdoc.version>2.7.0</springdoc.version>
     </properties>
