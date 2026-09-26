@@ -27,6 +27,26 @@ with a single API call — no manual data or topic setup.
 
 ---
 
+## Table of Contents
+
+- [What it does](#what-it-does)
+- [Key properties](#key-properties)
+- [Technology stack](#technology-stack)
+- [Quick start (Docker Compose — one machine)](#quick-start-docker-compose--one-machine)
+- [Local Kubernetes (minikube / kind)](#local-kubernetes-minikube--kind)
+- [Start & stop scripts — what actually happens](#start--stop-scripts--what-actually-happens)
+- [Command reference](#command-reference)
+- [Build & test](#build--test)
+- [Onboarding a new tenant (config only — no redeploy)](#onboarding-a-new-tenant-config-only--no-redeploy)
+- [API (summary)](#api-summary)
+- [Project layout](#project-layout)
+- [Diagrams](#diagrams)
+- [Configuration](#configuration)
+- [License](#license)
+- [Author](#author)
+
+---
+
 ## What it does
 
 A REST API triggers a **master** (Spring Batch manager step) that discovers eligible
