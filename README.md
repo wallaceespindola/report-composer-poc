@@ -1,4 +1,15 @@
+![Java](https://cdn.icon-icons.com/icons2/2699/PNG/512/java_logo_icon_168609.png)
+
 # Report Composer POC
+
+![Apache 2.0 License](https://img.shields.io/badge/License-Apache2.0-orange)
+![Java](https://img.shields.io/badge/Built_with-Java21-blue)
+![Spring](https://img.shields.io/badge/Structured_by-SpringBoot-lemon)
+![Spring Batch](https://img.shields.io/badge/Processed_by-SpringBatch-green)
+![Kafka](https://img.shields.io/badge/Events_by-Kafka-brown)
+![Kubernetes](https://img.shields.io/badge/Runs_on-Kubernetes-blue)
+![Maven](https://img.shields.io/badge/Powered_by-Maven-pink)
+[![CI](https://github.com/wallaceespindola/report-composer-poc/actions/workflows/ci.yml/badge.svg)](https://github.com/wallaceespindola/report-composer-poc/actions/workflows/ci.yml)
 
 A Proof of Concept for a **distributed Report Composer** that generates one report per
 **account**, per **business date**, per **report type**, per **tenant (country)** — using
