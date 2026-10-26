@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.5</version>
+        <version>3.4.13</version>
         <relativePath/>
     </parent>
 
@@ -29,7 +29,7 @@
         <java.version>21</java.version>
         <minio.version>8.5.17</minio.version>
         <fabric8.version>6.13.4</fabric8.version>
-        <springdoc.version>2.9.1</springdoc.version>
+        <springdoc.version>2.8.17</springdoc.version>
     </properties>
 
     <dependencies>
