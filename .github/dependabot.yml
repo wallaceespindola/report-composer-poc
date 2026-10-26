@@ -4,9 +4,9 @@ updates:
   - package-ecosystem: "maven"
     directory: "/"
     ignore:
-      # springdoc 3.x targets Spring Boot 4; lift this when the project moves to Boot 4.
+      # springdoc 2.9 needs Spring Boot 3.5 and 3.x needs Boot 4; stay on 2.8.x while on Boot 3.4.
       - dependency-name: "org.springdoc:*"
-        update-types: ["version-update:semver-major"]
+        versions: [">=2.9.0"]
     schedule:
       interval: "weekly"
       day: "monday"
