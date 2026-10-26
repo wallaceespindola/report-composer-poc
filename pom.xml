@@ -29,7 +29,7 @@
         <java.version>21</java.version>
         <minio.version>8.5.17</minio.version>
         <fabric8.version>6.13.4</fabric8.version>
-        <springdoc.version>2.7.0</springdoc.version>
+        <springdoc.version>2.9.1</springdoc.version>
     </properties>
 
     <dependencies>
@@ -159,7 +159,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>
+                <version>0.8.15</version>
                 <executions>
                     <execution>
                         <goals>
